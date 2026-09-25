@@ -1,0 +1,100 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource/archivo-black/400.css";
+@import "@fontsource/work-sans/400.css";
+@import "@fontsource/work-sans/500.css";
+@import "@fontsource/work-sans/600.css";
+@import "@fontsource/work-sans/700.css";
+@import "@fontsource/space-mono/400.css";
+@import "@fontsource/space-mono/700.css";
+@import "@fontsource/bangers/400.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-line: var(--line);
+  --color-surface: var(--surface);
+  --color-yellow: #ffd84a;
+  --color-red: #e44f4b;
+  --color-blue: #5c80ed;
+  --color-pink: #e9abd3;
+  --color-green: #86dc82;
+  --color-background: var(--paper);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--ink);
+  --color-primary-foreground: var(--paper);
+  --color-secondary: var(--surface);
+  --color-secondary-foreground: var(--ink);
+  --color-muted: var(--surface);
+  --color-muted-foreground: var(--ink);
+  --color-accent: #ffd84a;
+  --color-accent-foreground: #141210;
+  --color-border: var(--line);
+  --color-input: var(--line);
+  --color-ring: var(--line);
+  --font-display: "Archivo Black", sans-serif;
+  --font-body: "Work Sans", sans-serif;
+  --font-data: "Space Mono", monospace;
+  --font-accent: "Bangers", sans-serif;
+}
+
+:root {
+  --paper: #f4f3ee;
+  --ink: #141210;
+  --surface: #ffffff;
+  --line: #141210;
+  color-scheme: light;
+}
+
+.dark {
+  --paper: #1b1a18;
+  --ink: #f4f3ee;
+  --surface: #292722;
+  --line: #ffd84a;
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+body {
+  min-width: 320px;
+  margin: 0;
+  font-family: "Work Sans", sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+* {
+  box-sizing: border-box;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+:focus-visible {
+  outline: 3px solid #e44f4b;
+  outline-offset: 3px;
+}
+::selection {
+  color: #141210;
+  background: #ffd84a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "extends": ["ultracite/biome/core", "ultracite/biome/react"],
+  "linter": {
+    "rules": {
+      "performance": { "noJsxPropsBind": "off", "noBarrelFile": "off" },
+      "style": { "noNestedTernary": "off", "useFilenamingConvention": "off" }
+    }
+  }
+}

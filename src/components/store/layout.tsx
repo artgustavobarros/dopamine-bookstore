@@ -1,0 +1,226 @@
+import { Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { Heart, Menu, Moon, ShoppingBag, Sun, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ActionButton } from "@/components/store/action-button";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Toaster } from "@/components/ui/sonner";
+import { t } from "@/lib/i18n";
+import { useStore } from "@/lib/store";
+
+const destinations = [
+  { key: "shop", to: "/" },
+  { key: "wishlist", to: "/wishlist" },
+  { key: "orders", to: "/orders" },
+  { key: "stats", to: "/stats" },
+] as const;
+
+export function StoreLayout() {
+  const locale = useStore((state) => state.locale);
+  const theme = useStore((state) => state.theme);
+  const setLocale = useStore((state) => state.setLocale);
+  const setTheme = useStore((state) => state.setTheme);
+  const cartIds = useStore((state) => state.cartIds);
+  const wishlistIds = useStore((state) => state.wishlistIds);
+  const profile = useStore((state) => state.profile);
+  const hydrated = useStore((state) => state.hydrated);
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
+  const [open, setOpen] = useState(false);
+  const text = t(locale);
+
+  useEffect(() => {
+    Promise.resolve(useStore.persist.rehydrate()).finally(() =>
+      useStore.setState({ hydrated: true })
+    );
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    document.documentElement.lang = locale === "pt" ? "pt-BR" : "en";
+  }, [theme, locale]);
+
+  const navLinks = destinations.map(({ to, key }) => (
+    <Link
+      className={`border-[3px] border-line px-3 py-2 font-bold text-sm transition-transform hover:-translate-y-0.5 hover:bg-yellow hover:text-[#141210] ${pathname === to || (to === "/" && pathname.startsWith("/books/")) ? "bg-yellow text-[#141210] shadow-[3px_3px_0_var(--line)]" : "bg-surface"}`}
+      key={to}
+      to={to}
+    >
+      {text[key]}
+      {key === "wishlist" && hydrated && wishlistIds.length > 0
+        ? ` · ${wishlistIds.length}`
+        : ""}
+    </Link>
+  ));
+
+  return (
+    <div className="min-h-screen bg-paper text-ink" data-hydrated={hydrated}>
+      <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 bg-[#141210] px-4 py-2 font-data text-[10px] text-white uppercase tracking-wide sm:text-xs">
+        <span>{text.bar1}</span>
+        <span className="text-yellow">✦</span>
+        <span>{text.bar2}</span>
+        <span className="hidden text-yellow sm:inline">✦</span>
+        <span className="hidden sm:inline">{text.bar3}</span>
+      </div>
+      <header className="sticky top-0 z-40 border-line border-b-[3px] bg-paper/95 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <Link
+            className="shrink-0 -rotate-2 border-[3px] border-line bg-yellow px-3 py-1 font-display text-[#141210] text-base leading-none shadow-[4px_4px_0_var(--line)] sm:text-xl"
+            to="/"
+          >
+            DEPOIS EU LEIO
+          </Link>
+          <nav
+            aria-label="Main navigation"
+            className="ml-auto hidden items-center gap-2 lg:flex"
+          >
+            {navLinks}
+          </nav>
+          <div className="ml-auto flex items-center gap-2 lg:ml-0">
+            <button
+              aria-label={text.language}
+              className="border-2 border-line bg-surface px-2 py-1 font-bold font-data text-xs hover:bg-yellow hover:text-[#141210]"
+              onClick={() => setLocale(locale === "pt" ? "en" : "pt")}
+              type="button"
+            >
+              {locale.toUpperCase()}
+            </button>
+            <button
+              aria-label={text.theme}
+              className="flex size-8 items-center justify-center border-2 border-line bg-surface hover:bg-yellow hover:text-[#141210]"
+              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+              type="button"
+            >
+              {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
+            </button>
+            <Link
+              aria-label={`${text.cart}${hydrated ? `: ${cartIds.length}` : ""}`}
+              className="flex h-9 items-center gap-1 border-[3px] border-line bg-ink px-2 font-bold text-paper text-xs hover:bg-yellow hover:text-[#141210]"
+              to="/cart"
+            >
+              <ShoppingBag size={17} />
+              <span>{hydrated ? cartIds.length : "–"}</span>
+            </Link>
+            <Link
+              className="hidden border-[3px] border-line bg-surface px-3 py-1.5 font-bold text-sm hover:bg-yellow hover:text-[#141210] md:inline-flex"
+              to="/account"
+            >
+              {hydrated && profile ? profile.name.split(" ")[0] : text.account}
+            </Link>
+            <Sheet onOpenChange={setOpen} open={open}>
+              <SheetTrigger asChild>
+                <button
+                  aria-label={text.menu}
+                  className="flex size-9 items-center justify-center border-[3px] border-line bg-yellow text-[#141210] lg:hidden"
+                  type="button"
+                >
+                  <Menu size={19} />
+                </button>
+              </SheetTrigger>
+              <SheetContent
+                className="w-[min(22rem,88vw)] border-line border-l-[3px] bg-paper p-0"
+                showCloseButton={false}
+              >
+                <SheetHeader className="flex-row items-center justify-between border-line border-b-[3px] bg-yellow p-5 text-[#141210]">
+                  <SheetTitle className="font-display text-2xl">
+                    {text.menu}
+                  </SheetTitle>
+                  <SheetClose asChild>
+                    <button aria-label={text.close} type="button">
+                      <X />
+                    </button>
+                  </SheetClose>
+                </SheetHeader>
+                <nav
+                  aria-label="Mobile navigation"
+                  className="flex flex-col gap-3 p-5"
+                >
+                  {destinations.map(({ to, key }) => (
+                    <SheetClose asChild key={to}>
+                      <Link
+                        className="border-[3px] border-line bg-surface px-4 py-3 font-bold shadow-[4px_4px_0_var(--line)]"
+                        onClick={() => setOpen(false)}
+                        to={to}
+                      >
+                        {text[key]}
+                      </Link>
+                    </SheetClose>
+                  ))}
+                  <SheetClose asChild>
+                    <Link
+                      className="flex items-center gap-2 border-[3px] border-line bg-surface px-4 py-3 font-bold shadow-[4px_4px_0_var(--line)]"
+                      onClick={() => setOpen(false)}
+                      to="/cart"
+                    >
+                      <ShoppingBag size={18} />
+                      {text.cart} · {hydrated ? cartIds.length : "–"}
+                    </Link>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Link
+                      className="border-[3px] border-line bg-surface px-4 py-3 font-bold shadow-[4px_4px_0_var(--line)]"
+                      onClick={() => setOpen(false)}
+                      to="/account"
+                    >
+                      {hydrated && profile ? profile.name : text.account}
+                    </Link>
+                  </SheetClose>
+                </nav>
+              </SheetContent>
+            </Sheet>
+          </div>
+        </div>
+      </header>
+      <main id="main-content">
+        <Outlet />
+      </main>
+      <footer className="mt-20 border-line border-t-[3px] bg-yellow text-[#141210]">
+        <div className="mx-auto flex max-w-7xl flex-col justify-between gap-5 px-5 py-10 sm:flex-row sm:items-end">
+          <div>
+            <p className="font-display text-3xl">DEPOIS EU LEIO.</p>
+            <p className="mt-2 max-w-md font-semibold text-sm">
+              {text.fictional}
+            </p>
+          </div>
+          <div className="flex gap-4 font-data text-xs">
+            <Link
+              className="inline-flex items-center gap-1 underline"
+              to="/wishlist"
+            >
+              <Heart size={14} />
+              {text.wishlist}
+            </Link>
+            <Link className="underline" to="/orders">
+              {text.orders}
+            </Link>
+          </div>
+        </div>
+      </footer>
+      <Toaster closeButton position="bottom-right" richColors theme={theme} />
+    </div>
+  );
+}
+
+export function EmptyState({
+  title,
+  action,
+}: {
+  title: string;
+  action?: string;
+}) {
+  return (
+    <div className="border-[3px] border-line border-dashed bg-surface p-8 text-center sm:p-12">
+      <p className="font-display text-2xl sm:text-3xl">{title}</p>
+      <ActionButton asChild className="mt-6">
+        <Link to="/">{action ?? "Voltar à loja"}</Link>
+      </ActionButton>
+    </div>
+  );
+}

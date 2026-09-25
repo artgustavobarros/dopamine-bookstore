@@ -1,0 +1,24 @@
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <title>Depois Eu Leio</title>
+  <rect fill="#141210" height="54" width="54" x="4" y="4" />
+  <rect
+    fill="#ffd84a"
+    height="54"
+    stroke="#141210"
+    stroke-width="4"
+    width="54"
+    x="2"
+    y="2"
+  />
+  <text
+    fill="#141210"
+    font-family="Arial Black, sans-serif"
+    font-size="26"
+    font-weight="900"
+    text-anchor="middle"
+    x="29"
+    y="40"
+  >
+    DL
+  </text>
+</svg>
