@@ -6,6 +6,7 @@ import {
   Sheet,
   SheetClose,
   SheetContent,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -142,22 +143,24 @@ export function StoreLayout() {
             {navLinks}
           </nav>
           <div className="ml-auto flex items-center gap-2 lg:ml-0">
-            <button
-              aria-label={text.language}
-              className="border-2 border-line bg-surface px-2 py-1 font-bold font-data text-xs hover:bg-yellow hover:text-[#141210]"
-              onClick={() => setLocale(locale === "pt" ? "en" : "pt")}
-              type="button"
-            >
-              {locale.toUpperCase()}
-            </button>
-            <button
-              aria-label={text.theme}
-              className="flex size-8 items-center justify-center border-2 border-line bg-surface hover:bg-yellow hover:text-[#141210]"
-              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-              type="button"
-            >
-              {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
-            </button>
+            <div className="hidden items-center gap-2 lg:flex">
+              <button
+                aria-label={text.language}
+                className="border-2 border-line bg-surface px-2 py-1 font-bold font-data text-xs hover:bg-yellow hover:text-[#141210]"
+                onClick={() => setLocale(locale === "pt" ? "en" : "pt")}
+                type="button"
+              >
+                {locale.toUpperCase()}
+              </button>
+              <button
+                aria-label={text.theme}
+                className="flex size-8 items-center justify-center border-2 border-line bg-surface hover:bg-yellow hover:text-[#141210]"
+                onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+                type="button"
+              >
+                {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
+              </button>
+            </div>
             <Link
               aria-label={`${text.cart}${hydrated ? `: ${cartIds.length}` : ""}`}
               className="flex h-9 items-center gap-1 border-[3px] border-line bg-ink px-2 font-bold text-paper text-xs hover:bg-yellow hover:text-[#141210]"
@@ -185,7 +188,7 @@ export function StoreLayout() {
                 </button>
               </SheetTrigger>
               <SheetContent
-                className="w-[min(22rem,88vw)] border-line border-l-[3px] bg-paper p-0"
+                className="w-[min(22rem,88vw)] gap-0 border-line border-l-[3px] bg-paper p-0"
                 ref={menuPanel}
                 showCloseButton={false}
               >
@@ -201,7 +204,7 @@ export function StoreLayout() {
                 </SheetHeader>
                 <nav
                   aria-label="Mobile navigation"
-                  className="flex flex-col gap-3 p-5"
+                  className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-5"
                 >
                   {destinations.map(({ to, key }) => (
                     <SheetClose asChild key={to}>
@@ -234,6 +237,26 @@ export function StoreLayout() {
                     </Link>
                   </SheetClose>
                 </nav>
+                <SheetFooter className="mt-auto flex-row items-center gap-3 border-line border-t-[3px] bg-paper p-5">
+                  <button
+                    aria-label={text.language}
+                    className="flex min-h-11 flex-1 items-center justify-center border-2 border-line bg-surface px-4 font-bold font-data text-sm hover:bg-yellow hover:text-[#141210]"
+                    onClick={() => setLocale(locale === "pt" ? "en" : "pt")}
+                    type="button"
+                  >
+                    {locale.toUpperCase()}
+                  </button>
+                  <button
+                    aria-label={text.theme}
+                    className="flex size-11 items-center justify-center border-2 border-line bg-surface hover:bg-yellow hover:text-[#141210]"
+                    onClick={() =>
+                      setTheme(theme === "light" ? "dark" : "light")
+                    }
+                    type="button"
+                  >
+                    {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+                  </button>
+                </SheetFooter>
               </SheetContent>
             </Sheet>
           </div>
