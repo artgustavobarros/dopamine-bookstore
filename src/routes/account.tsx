@@ -5,6 +5,13 @@ import { z } from "zod";
 import { ActionButton } from "@/components/store/action-button";
 import { Input } from "@/components/ui/input";
 import { t } from "@/lib/i18n";
+import {
+  gsap,
+  useGSAP,
+  useInsertedPanelMotion,
+  useRouteEntrance,
+  withMotion,
+} from "@/lib/motion";
 import { useStore } from "@/lib/store";
 
 const profileFormSchema = z.object({
@@ -21,6 +28,7 @@ export const Route = createFileRoute("/account")({
 });
 
 function AccountPage() {
+  const route = useRouteEntrance<HTMLDivElement>();
   const locale = useStore((state) => state.locale);
   const profile = useStore((state) => state.profile);
   const hydrated = useStore((state) => state.hydrated);
@@ -32,6 +40,33 @@ function AccountPage() {
     defaultValues: { email: "", name: "" },
     resolver: zodResolver(profileFormSchema),
   });
+  const nameInvalid = Boolean(form.formState.errors.name);
+  const emailInvalid = Boolean(form.formState.errors.email);
+  useInsertedPanelMotion(route, [hydrated, Boolean(profile)]);
+  useGSAP(
+    () =>
+      withMotion(() => {
+        const alerts = route.current?.querySelectorAll("[data-motion-alert]");
+        if (alerts?.length) {
+          gsap.fromTo(
+            alerts,
+            { autoAlpha: 0, scale: 0.6 },
+            {
+              autoAlpha: 1,
+              clearProps: "opacity,visibility,transform",
+              duration: 0.35,
+              ease: "back.out(1.8)",
+              scale: 1,
+            }
+          );
+        }
+      }),
+    {
+      dependencies: [nameInvalid, emailInvalid],
+      revertOnUpdate: true,
+      scope: route,
+    }
+  );
 
   function continueToDestination() {
     if (returnTo === "/checkout") {
@@ -45,14 +80,17 @@ function AccountPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-5 pt-12 sm:px-6">
+    <div className="mx-auto max-w-5xl px-5 pt-12 sm:px-6" ref={route}>
       <h1 className="mb-6 border-line border-b-[3px] pb-3 font-display text-4xl sm:text-5xl">
         {text.accountTitle}
       </h1>
       <p className="mb-8 max-w-[55ch] text-lg">{text.accountLead}</p>
       {hydrated ? (
         profile ? (
-          <div className="max-w-xl border-[3px] border-line bg-green p-6 text-[#141210] shadow-[6px_6px_0_var(--line)]">
+          <div
+            className="max-w-xl border-[3px] border-line bg-green p-6 text-[#141210] shadow-[6px_6px_0_var(--line)]"
+            data-motion-panel
+          >
             <p className="font-data text-xs uppercase">{text.signedAs}</p>
             <p className="mt-3 font-display text-3xl">{profile.name}</p>
             <p className="mt-1">{profile.email}</p>
@@ -71,6 +109,7 @@ function AccountPage() {
         ) : (
           <form
             className="flex max-w-xl flex-col gap-5 border-[3px] border-line bg-surface p-6 shadow-[6px_6px_0_var(--line)]"
+            data-motion-panel
             onSubmit={form.handleSubmit((values) => {
               setProfile(values);
               continueToDestination();
@@ -90,6 +129,7 @@ function AccountPage() {
               {Boolean(form.formState.errors.name) && (
                 <span
                   className="text-[#a91f22] text-sm dark:text-[#ff8680]"
+                  data-motion-alert
                   role="alert"
                 >
                   {text.nameError}
@@ -111,6 +151,7 @@ function AccountPage() {
               {Boolean(form.formState.errors.email) && (
                 <span
                   className="text-[#a91f22] text-sm dark:text-[#ff8680]"
+                  data-motion-alert
                   role="alert"
                 >
                   {text.emailError}

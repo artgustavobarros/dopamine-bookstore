@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Heart, Star } from "lucide-react";
+import { useRef } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -16,6 +17,13 @@ import {
   readingHours,
 } from "@/lib/catalog";
 import { t } from "@/lib/i18n";
+import {
+  gsap,
+  useGSAP,
+  useInsertedPanelMotion,
+  useRouteEntrance,
+  withMotion,
+} from "@/lib/motion";
 import { type Review, useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/books/$bookId")({
@@ -30,6 +38,11 @@ type ReviewFields = z.infer<typeof reviewSchema>;
 const emptyReviews: Review[] = [];
 
 function BookDetail() {
+  const route = useRouteEntrance<HTMLDivElement>();
+  const addLabel = useRef<HTMLSpanElement>(null);
+  const wishIcon = useRef<HTMLSpanElement>(null);
+  const lastCart = useRef<boolean | null>(null);
+  const lastWish = useRef<boolean | null>(null);
   const { bookId } = Route.useParams();
   const book = booksById.get(bookId);
   const locale = useStore((state) => state.locale);
@@ -47,17 +60,68 @@ function BookDetail() {
     defaultValues: { stars: 5, text: "" },
     resolver: zodResolver(reviewSchema),
   });
+  useInsertedPanelMotion(route, [hydrated, Boolean(profile), bookId]);
+  const inCart = Boolean(book && cartIds.includes(book.id));
+  const wished = Boolean(book && wishlistIds.includes(book.id));
+  useGSAP(
+    () => {
+      if (!(hydrated && book)) {
+        return;
+      }
+      const previousCart = lastCart.current;
+      const previousWish = lastWish.current;
+      lastCart.current = inCart;
+      lastWish.current = wished;
+      return withMotion(() => {
+        if (
+          previousCart !== null &&
+          previousCart !== inCart &&
+          addLabel.current
+        ) {
+          gsap.fromTo(
+            addLabel.current,
+            { scale: 0.6 },
+            {
+              clearProps: "transform",
+              duration: 0.3,
+              ease: "back.out(1.8)",
+              scale: 1,
+            }
+          );
+        }
+        if (
+          previousWish !== null &&
+          previousWish !== wished &&
+          wishIcon.current
+        ) {
+          gsap.fromTo(
+            wishIcon.current,
+            { scale: 0.4 },
+            {
+              clearProps: "transform",
+              duration: 0.35,
+              ease: "back.out(2)",
+              scale: 1,
+            }
+          );
+        }
+      });
+    },
+    {
+      dependencies: [hydrated, inCart, wished, bookId],
+      revertOnUpdate: true,
+      scope: route,
+    }
+  );
 
   if (!book) {
     return (
-      <div className="mx-auto max-w-5xl px-5 pt-14">
+      <div className="mx-auto max-w-5xl px-5 pt-14" ref={route}>
         <EmptyState action={text.goHome} title={text.notFound} />
       </div>
     );
   }
 
-  const inCart = cartIds.includes(book.id);
-  const wished = wishlistIds.includes(book.id);
   const sampleReviews =
     locale === "pt"
       ? [
@@ -86,7 +150,7 @@ function BookDetail() {
         ];
 
   return (
-    <div className="mx-auto max-w-7xl px-5 pt-10 sm:px-6">
+    <div className="mx-auto max-w-7xl px-5 pt-10 sm:px-6" ref={route}>
       <Link
         className="inline-flex border-line border-b-2 pb-1 font-bold text-sm hover:text-[#a91f22] dark:hover:text-[#ff8680]"
         to="/"
@@ -153,7 +217,9 @@ function BookDetail() {
                 )
               }
             >
-              {inCart ? text.inCart : text.addCart}
+              <span className="inline-block" ref={addLabel}>
+                {inCart ? text.inCart : text.addCart}
+              </span>
             </ActionButton>
             <ActionButton
               aria-pressed={wished}
@@ -165,7 +231,9 @@ function BookDetail() {
               }}
               tone={wished ? "yellow" : "surface"}
             >
-              <Heart className={wished ? "fill-[#141210]" : ""} />
+              <span className="inline-flex" ref={wishIcon}>
+                <Heart className={wished ? "fill-[#141210]" : ""} />
+              </span>
               {wished ? text.removeWish : text.saveWish}
             </ActionButton>
           </div>
@@ -178,6 +246,7 @@ function BookDetail() {
         {hydrated && profile ? (
           <form
             className="mt-6 flex flex-col gap-4 border-[3px] border-line bg-surface p-5 shadow-[6px_6px_0_var(--line)]"
+            data-motion-panel
             onSubmit={form.handleSubmit(({ stars, text: reviewText }) => {
               addReview(book.id, stars, reviewText);
               form.reset();
@@ -231,7 +300,10 @@ function BookDetail() {
             </div>
           </form>
         ) : (
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-[3px] border-line border-dashed p-5">
+          <div
+            className="mt-6 flex flex-wrap items-center justify-between gap-4 border-[3px] border-line border-dashed p-5"
+            data-motion-panel
+          >
             <p className="font-semibold">{text.signInReview}</p>
             <ActionButton asChild tone="surface">
               <Link search={{ returnTo: `/books/${book.id}` }} to="/account">

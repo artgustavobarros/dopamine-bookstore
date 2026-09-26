@@ -5,11 +5,13 @@ import { BookCover } from "@/components/store/book-cover";
 import { EmptyState } from "@/components/store/layout";
 import { formatNumber, formatPrice, readingHours } from "@/lib/catalog";
 import { t } from "@/lib/i18n";
+import { useInsertedPanelMotion, useRouteEntrance } from "@/lib/motion";
 import { getCartBooks, getCartTotals, useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/cart")({ component: CartPage });
 
 function CartPage() {
+  const route = useRouteEntrance<HTMLDivElement>();
   const locale = useStore((state) => state.locale);
   const ids = useStore((state) => state.cartIds);
   const remove = useStore((state) => state.removeCart);
@@ -17,8 +19,9 @@ function CartPage() {
   const text = t(locale);
   const selected = getCartBooks(ids);
   const totals = getCartTotals(ids);
+  useInsertedPanelMotion(route, [hydrated, selected.length]);
   return (
-    <div className="mx-auto max-w-7xl px-5 pt-12 sm:px-6">
+    <div className="mx-auto max-w-7xl px-5 pt-12 sm:px-6" ref={route}>
       <h1 className="mb-8 border-line border-b-[3px] pb-3 font-display text-4xl sm:text-5xl">
         {text.cart}
       </h1>
@@ -26,7 +29,10 @@ function CartPage() {
         selected.length === 0 ? (
           <EmptyState action={text.backCatalog} title={text.cartEmpty} />
         ) : (
-          <div className="grid gap-10 lg:grid-cols-[1fr_340px]">
+          <div
+            className="grid gap-10 lg:grid-cols-[1fr_340px]"
+            data-motion-panel
+          >
             <div className="space-y-5">
               {selected.map((book) => (
                 <article

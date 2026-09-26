@@ -1,6 +1,6 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { Heart, Menu, Moon, ShoppingBag, Sun, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActionButton } from "@/components/store/action-button";
 import {
   Sheet,
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/sheet";
 import { Toaster } from "@/components/ui/sonner";
 import { t } from "@/lib/i18n";
+import { gsap, useGSAP, withMotion } from "@/lib/motion";
 import { useStore } from "@/lib/store";
 
 const destinations = [
@@ -22,6 +23,9 @@ const destinations = [
 ] as const;
 
 export function StoreLayout() {
+  const cartCount = useRef<HTMLSpanElement>(null);
+  const lastCartCount = useRef<number | null>(null);
+  const menuPanel = useRef<HTMLDivElement>(null);
   const locale = useStore((state) => state.locale);
   const theme = useStore((state) => state.theme);
   const setLocale = useStore((state) => state.setLocale);
@@ -35,6 +39,60 @@ export function StoreLayout() {
   });
   const [open, setOpen] = useState(false);
   const text = t(locale);
+
+  useGSAP(
+    () => {
+      if (!hydrated) {
+        return;
+      }
+      const previous = lastCartCount.current;
+      lastCartCount.current = cartIds.length;
+      if (previous === null || previous === cartIds.length) {
+        return;
+      }
+      return withMotion(() => {
+        if (cartCount.current?.isConnected) {
+          gsap
+            .timeline()
+            .to(cartCount.current, { duration: 0.16, scale: 1.45 })
+            .to(cartCount.current, {
+              clearProps: "transform",
+              duration: 0.24,
+              ease: "back.out(1.5)",
+              scale: 1,
+            });
+        }
+      });
+    },
+    {
+      dependencies: [hydrated, cartIds.length],
+      revertOnUpdate: true,
+      scope: cartCount,
+    }
+  );
+
+  useGSAP(
+    () => {
+      if (!open) {
+        return;
+      }
+      return withMotion(() => {
+        if (menuPanel.current?.isConnected) {
+          gsap.fromTo(
+            menuPanel.current,
+            { xPercent: 100 },
+            {
+              clearProps: "transform",
+              duration: 0.35,
+              ease: "power3.out",
+              xPercent: 0,
+            }
+          );
+        }
+      });
+    },
+    { dependencies: [open], revertOnUpdate: true, scope: menuPanel }
+  );
 
   useEffect(() => {
     Promise.resolve(useStore.persist.rehydrate()).finally(() =>
@@ -106,7 +164,9 @@ export function StoreLayout() {
               to="/cart"
             >
               <ShoppingBag size={17} />
-              <span>{hydrated ? cartIds.length : "–"}</span>
+              <span className="inline-block" ref={cartCount}>
+                {hydrated ? cartIds.length : "–"}
+              </span>
             </Link>
             <Link
               className="hidden border-[3px] border-line bg-surface px-3 py-1.5 font-bold text-sm hover:bg-yellow hover:text-[#141210] md:inline-flex"
@@ -126,6 +186,7 @@ export function StoreLayout() {
               </SheetTrigger>
               <SheetContent
                 className="w-[min(22rem,88vw)] border-line border-l-[3px] bg-paper p-0"
+                ref={menuPanel}
                 showCloseButton={false}
               >
                 <SheetHeader className="flex-row items-center justify-between border-line border-b-[3px] bg-yellow p-5 text-[#141210]">

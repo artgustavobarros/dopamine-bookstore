@@ -7,12 +7,14 @@ import {
   genreLabels,
 } from "@/lib/catalog";
 import { t } from "@/lib/i18n";
+import { useInsertedPanelMotion, useRouteEntrance } from "@/lib/motion";
 import { getStats } from "@/lib/stats";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/stats")({ component: StatsPage });
 
 function StatsPage() {
+  const route = useRouteEntrance<HTMLDivElement>();
   const locale = useStore((state) => state.locale);
   const orders = useStore((state) => state.orders);
   const hydrated = useStore((state) => state.hydrated);
@@ -56,8 +58,9 @@ function StatsPage() {
           : "—",
     },
   ];
+  useInsertedPanelMotion(route, [hydrated, stats.orderCount]);
   return (
-    <div className="mx-auto max-w-7xl px-5 pt-12 sm:px-6">
+    <div className="mx-auto max-w-7xl px-5 pt-12 sm:px-6" ref={route}>
       <div className="border-[3px] border-line bg-ink p-7 text-paper shadow-[8px_8px_0_#ffd84a] sm:p-10">
         <h1 className="max-w-[16ch] font-display text-4xl leading-tight sm:text-6xl">
           {text.statsTitle}
@@ -66,7 +69,10 @@ function StatsPage() {
       </div>
       {hydrated ? (
         <>
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div
+            className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+            data-motion-panel
+          >
             {cards.map((card) => (
               <article
                 className={`min-h-40 border-[3px] border-line p-5 shadow-[5px_5px_0_var(--line)] ${card.tone}`}

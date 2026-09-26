@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/store/layout";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { formatNumber, formatPrice, readingHours } from "@/lib/catalog";
 import { t } from "@/lib/i18n";
+import { useInsertedPanelMotion, useRouteEntrance } from "@/lib/motion";
 import { getCartBooks, getCartTotals, useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/checkout/")({ component: CheckoutPage });
@@ -16,6 +17,7 @@ const checkoutSchema = z.object({ method: z.enum(["pix", "card", "none"]) });
 type CheckoutFields = z.infer<typeof checkoutSchema>;
 
 function CheckoutPage() {
+  const route = useRouteEntrance<HTMLDivElement>();
   const locale = useStore((state) => state.locale);
   const profile = useStore((state) => state.profile);
   const cartIds = useStore((state) => state.cartIds);
@@ -29,8 +31,9 @@ function CheckoutPage() {
     defaultValues: { method: "none" },
     resolver: zodResolver(checkoutSchema),
   });
+  useInsertedPanelMotion(route, [hydrated, Boolean(profile), selected.length]);
   return (
-    <div className="mx-auto max-w-7xl px-5 pt-12 sm:px-6">
+    <div className="mx-auto max-w-7xl px-5 pt-12 sm:px-6" ref={route}>
       <h1 className="mb-6 border-line border-b-[3px] pb-3 font-display text-4xl sm:text-5xl">
         {text.checkoutTitle}
       </h1>
@@ -38,7 +41,10 @@ function CheckoutPage() {
         selected.length === 0 ? (
           <EmptyState action={text.backCatalog} title={text.cartEmpty} />
         ) : profile ? (
-          <div className="grid gap-8 lg:grid-cols-[1fr_350px]">
+          <div
+            className="grid gap-8 lg:grid-cols-[1fr_350px]"
+            data-motion-panel
+          >
             <form
               className="border-[3px] border-line bg-surface p-6 shadow-[6px_6px_0_var(--line)]"
               onSubmit={form.handleSubmit(({ method }) => {
@@ -136,7 +142,10 @@ function CheckoutPage() {
             </aside>
           </div>
         ) : (
-          <div className="border-[3px] border-line bg-yellow p-8 text-[#141210] shadow-[6px_6px_0_var(--line)]">
+          <div
+            className="border-[3px] border-line bg-yellow p-8 text-[#141210] shadow-[6px_6px_0_var(--line)]"
+            data-motion-panel
+          >
             <p className="font-display text-2xl">{text.checkoutLead}</p>
             <p className="mt-3">{text.accountLead}</p>
             <ActionButton asChild className="mt-6" tone="surface">

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search, SlidersHorizontal } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ActionButton } from "@/components/store/action-button";
 import { BookCard } from "@/components/store/book-card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,13 @@ import {
   genres,
 } from "@/lib/catalog";
 import { t } from "@/lib/i18n";
+import {
+  gsap,
+  POINTER_QUERY,
+  ScrollTrigger,
+  useGSAP,
+  withMotion,
+} from "@/lib/motion";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/")({ component: Home });
@@ -28,27 +35,175 @@ const defaultFilters: CatalogFilters = {
 };
 
 function Home() {
+  const hero = useRef<HTMLElement>(null);
   const locale = useStore((state) => state.locale);
   const text = t(locale);
   const [filters, setFilters] = useState<CatalogFilters>(defaultFilters);
   const filtered = filterBooks(filters);
+  const filteredIds = filtered.map((book) => book.id).join(",");
   const featured = [books[3], books[0], books[15]];
   const update = <K extends keyof CatalogFilters>(
     key: K,
     value: CatalogFilters[K]
   ) => setFilters((old) => ({ ...old, [key]: value }));
+
+  useGSAP(
+    () =>
+      withMotion(() => {
+        const root = hero.current;
+        if (!root?.isConnected) {
+          return;
+        }
+        const timeline = gsap.timeline({ defaults: { ease: "back.out(1.2)" } });
+        timeline
+          .from(
+            root.querySelectorAll("[data-hero-badge]"),
+            {
+              autoAlpha: 0,
+              clearProps: "opacity,visibility,transform",
+              duration: 0.5,
+              rotation: -12,
+              scale: 1.8,
+            },
+            0.15
+          )
+          .from(
+            root.querySelectorAll("[data-hero-line]"),
+            {
+              autoAlpha: 0,
+              clearProps: "opacity,visibility,transform",
+              duration: 0.5,
+              stagger: 0.1,
+              y: 14,
+            },
+            0.2
+          )
+          .from(
+            root.querySelectorAll("[data-hero-book]"),
+            {
+              autoAlpha: 0,
+              clearProps: "opacity,visibility,transform",
+              duration: 0.55,
+              stagger: 0.1,
+              y: -60,
+            },
+            0.3
+          )
+          .from(
+            root.querySelectorAll("[data-hero-seal]"),
+            {
+              autoAlpha: 0,
+              clearProps: "opacity,visibility,transform",
+              duration: 0.6,
+              rotation: -200,
+              scale: 0,
+            },
+            0.7
+          );
+        timeline.eventCallback("onComplete", () => {
+          root.dataset.heroReady = "true";
+        });
+        return () => {
+          delete root.dataset.heroReady;
+        };
+      }),
+    { scope: hero }
+  );
+
+  useGSAP(
+    () => {
+      const media = gsap.matchMedia();
+      media.add(POINTER_QUERY, () => {
+        const root = hero.current;
+        if (!root?.isConnected) {
+          return;
+        }
+        const featuredBooks = Array.from(
+          root.querySelectorAll<HTMLElement>("[data-hero-book]")
+        );
+        const removeListeners = featuredBooks.map((element, index) => {
+          const restingRotation = Number(gsap.getProperty(element, "rotation"));
+          const x = gsap.quickTo(element, "x", {
+            duration: 0.2,
+            ease: "power2.out",
+          });
+          const y = gsap.quickTo(element, "y", {
+            duration: 0.2,
+            ease: "power2.out",
+          });
+          const rotation = gsap.quickTo(element, "rotation", {
+            duration: 0.2,
+            ease: "power2.out",
+          });
+          const onEnter = () => {
+            if (root.dataset.heroReady !== "true") {
+              return;
+            }
+            x(index === 1 ? 3 : -3);
+            y(-7);
+            rotation(restingRotation + (index === 1 ? 2 : -2));
+          };
+          const onMove = (event: PointerEvent) => {
+            if (root.dataset.heroReady !== "true") {
+              return;
+            }
+            const rect = element.getBoundingClientRect();
+            const offset = (event.clientX - rect.left) / rect.width - 0.5;
+            x(offset * 7);
+            rotation(restingRotation + offset * 5);
+          };
+          const onLeave = () => {
+            x(0);
+            y(0);
+            rotation(restingRotation);
+          };
+          element.addEventListener("pointerenter", onEnter);
+          element.addEventListener("pointermove", onMove);
+          element.addEventListener("pointerleave", onLeave);
+          return () => {
+            element.removeEventListener("pointerenter", onEnter);
+            element.removeEventListener("pointermove", onMove);
+            element.removeEventListener("pointerleave", onLeave);
+            gsap.set(element, { clearProps: "transform" });
+          };
+        });
+        return () => {
+          for (const remove of removeListeners) {
+            remove();
+          }
+        };
+      });
+      return () => media.revert();
+    },
+    { scope: hero }
+  );
+
+  useGSAP(
+    () => {
+      const frame = requestAnimationFrame(() => ScrollTrigger.refresh());
+      return () => cancelAnimationFrame(frame);
+    },
+    { dependencies: [filteredIds], revertOnUpdate: true }
+  );
+
   return (
     <>
-      <section className="overflow-hidden bg-paper">
+      <section className="overflow-hidden bg-paper" ref={hero}>
         <div className="mx-auto grid max-w-7xl gap-10 px-5 py-9 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:py-12">
           <div className="relative z-10">
-            <span className="inline-block -rotate-2 border-[#141210] border-[3px] bg-red px-3 py-1 font-accent text-lg text-white shadow-[3px_3px_0_#141210] sm:text-xl">
+            <span
+              className="inline-block -rotate-2 border-[#141210] border-[3px] bg-red px-3 py-1 font-accent text-lg text-white shadow-[3px_3px_0_#141210] sm:text-xl"
+              data-hero-badge
+            >
               {text.heroBadge}
             </span>
             <h1 className="mt-6 font-display text-[clamp(3.7rem,7.6vw,7.5rem)] leading-[0.9] tracking-[-0.06em]">
-              {text.heroA}
-              <br />
-              {text.heroB}
+              <span className="block" data-hero-line>
+                {text.heroA}
+              </span>
+              <span className="block" data-hero-line>
+                {text.heroB}
+              </span>
             </h1>
             <p className="mt-6 max-w-[35ch] font-semibold text-lg leading-snug sm:text-xl">
               {text.heroTag}
@@ -70,6 +225,7 @@ function Home() {
             {featured.map((book, index) => (
               <div
                 className={`absolute flex aspect-[0.7] w-[33%] flex-col justify-between border-[#141210] border-[3px] p-2 shadow-[5px_5px_0_#141210] sm:p-3 ${index === 0 ? "top-[22%] left-[15%] -rotate-[8deg] bg-red" : index === 1 ? "top-[17%] left-[40%] z-10 rotate-[2deg] bg-red" : "top-[21%] left-[63%] rotate-[9deg] bg-blue"}`}
+                data-hero-book
                 key={book.id}
               >
                 <strong className="border-2 border-[#141210] bg-white p-1 font-display text-[clamp(0.65rem,1.2vw,1rem)] leading-tight sm:p-2">
@@ -80,7 +236,10 @@ function Home() {
                 </span>
               </div>
             ))}
-            <div className="absolute top-[6%] right-[4%] z-20 flex size-21 rotate-12 flex-col items-center justify-center rounded-full border-[#141210] border-[3px] bg-yellow text-center font-display leading-none sm:size-28">
+            <div
+              className="absolute top-[6%] right-[4%] z-20 flex size-21 rotate-12 flex-col items-center justify-center rounded-full border-[#141210] border-[3px] bg-yellow text-center font-display leading-none sm:size-28"
+              data-hero-seal
+            >
               <span className="text-lg sm:text-2xl">R$ 0,00</span>
               <span className="mt-1 font-accent text-xs sm:text-base">
                 {locale === "pt" ? "DE VERDADE" : "FOR REAL"}
@@ -195,8 +354,8 @@ function Home() {
         </div>
         {filtered.length > 0 ? (
           <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filtered.map((book) => (
-              <BookCard book={book} key={book.id} />
+            {filtered.map((book, index) => (
+              <BookCard book={book} key={book.id} revealIndex={index} />
             ))}
           </div>
         ) : (

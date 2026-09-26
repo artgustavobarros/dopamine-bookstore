@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Heart } from "lucide-react";
+import { type PointerEvent, useRef } from "react";
 import { toast } from "sonner";
 import type { Book } from "@/lib/catalog";
 import {
@@ -9,11 +10,28 @@ import {
   readingHours,
 } from "@/lib/catalog";
 import { t } from "@/lib/i18n";
+import { gsap, POINTER_QUERY, useGSAP, withMotion } from "@/lib/motion";
 import { useStore } from "@/lib/store";
 import { ActionButton } from "./action-button";
 import { BookCover } from "./book-cover";
 
-export function BookCard({ book }: { book: Book }) {
+export function BookCard({
+  book,
+  revealIndex = 0,
+}: {
+  book: Book;
+  revealIndex?: number;
+}) {
+  const card = useRef<HTMLElement>(null);
+  const addLabel = useRef<HTMLSpanElement>(null);
+  const wishIcon = useRef<HTMLSpanElement>(null);
+  const lastCart = useRef<boolean | null>(null);
+  const lastWish = useRef<boolean | null>(null);
+  const pointerMotion = useRef<{
+    rotation: (value: number) => void;
+    x: (value: number) => void;
+    y: (value: number) => void;
+  } | null>(null);
   const locale = useStore((state) => state.locale);
   const cartIds = useStore((state) => state.cartIds);
   const wishlistIds = useStore((state) => state.wishlistIds);
@@ -23,8 +41,144 @@ export function BookCard({ book }: { book: Book }) {
   const text = t(locale);
   const inCart = cartIds.includes(book.id);
   const wished = wishlistIds.includes(book.id);
+
+  useGSAP(
+    () =>
+      withMotion(() => {
+        if (!card.current?.isConnected) {
+          return;
+        }
+        const element = card.current;
+        const columns = element.parentElement
+          ? getComputedStyle(element.parentElement)
+              .gridTemplateColumns.trim()
+              .split(" ").length
+          : 1;
+        gsap.fromTo(
+          element,
+          { autoAlpha: 0, rotation: -2, y: 22 },
+          {
+            autoAlpha: 1,
+            clearProps: "opacity,visibility,transform",
+            delay: (revealIndex % columns) * 0.07,
+            duration: 0.5,
+            ease: "back.out(1.2)",
+            onComplete: () => {
+              element.dataset.revealed = "true";
+            },
+            rotation: 0,
+            scrollTrigger: {
+              once: true,
+              start: "top 92%",
+              trigger: element,
+            },
+            y: 0,
+          }
+        );
+      }),
+    { scope: card }
+  );
+
+  useGSAP(
+    () => {
+      const media = gsap.matchMedia();
+      media.add(POINTER_QUERY, () => {
+        if (!card.current?.isConnected) {
+          return;
+        }
+        pointerMotion.current = {
+          rotation: gsap.quickTo(card.current, "rotation", { duration: 0.15 }),
+          x: gsap.quickTo(card.current, "x", { duration: 0.15 }),
+          y: gsap.quickTo(card.current, "y", { duration: 0.15 }),
+        };
+        return () => {
+          pointerMotion.current = null;
+          gsap.set(card.current, { clearProps: "transform" });
+        };
+      });
+      return () => media.revert();
+    },
+    { scope: card }
+  );
+
+  useGSAP(
+    () => {
+      if (!hydrated) {
+        return;
+      }
+      const previousCart = lastCart.current;
+      const previousWish = lastWish.current;
+      lastCart.current = inCart;
+      lastWish.current = wished;
+      return withMotion(() => {
+        if (
+          previousCart !== null &&
+          previousCart !== inCart &&
+          addLabel.current
+        ) {
+          gsap.fromTo(
+            addLabel.current,
+            { rotation: -4, scale: 0.6 },
+            {
+              clearProps: "transform",
+              duration: 0.3,
+              ease: "back.out(1.8)",
+              rotation: 0,
+              scale: 1,
+            }
+          );
+        }
+        if (
+          previousWish !== null &&
+          previousWish !== wished &&
+          wishIcon.current
+        ) {
+          gsap.fromTo(
+            wishIcon.current,
+            { scale: 0.4 },
+            {
+              clearProps: "transform",
+              duration: 0.35,
+              ease: "back.out(2)",
+              scale: 1,
+            }
+          );
+        }
+      });
+    },
+    {
+      dependencies: [hydrated, inCart, wished],
+      revertOnUpdate: true,
+      scope: card,
+    }
+  );
+
+  function onPointerMove(event: PointerEvent<HTMLElement>) {
+    if (card.current?.dataset.revealed !== "true") {
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const left = event.clientX - rect.left < rect.width / 2;
+    const bottom = event.clientY - rect.top > rect.height / 2;
+    pointerMotion.current?.rotation(left === bottom ? -1.2 : 1.2);
+    pointerMotion.current?.x(-3);
+    pointerMotion.current?.y(-3);
+  }
+
+  function onPointerLeave() {
+    pointerMotion.current?.rotation(0);
+    pointerMotion.current?.x(0);
+    pointerMotion.current?.y(0);
+  }
+
   return (
-    <article className="flex h-full flex-col border-[3px] border-line bg-surface shadow-[6px_6px_0_var(--line)]">
+    <article
+      className="flex h-full flex-col border-[3px] border-line bg-surface shadow-[6px_6px_0_var(--line)] transition-shadow hover:shadow-[8px_8px_0_#e44f4b]"
+      data-book-id={book.id}
+      onPointerLeave={onPointerLeave}
+      onPointerMove={onPointerMove}
+      ref={card}
+    >
       <Link
         aria-label={book.title[locale]}
         className="block p-4 pb-2"
@@ -74,7 +228,9 @@ export function BookCard({ book }: { book: Book }) {
               )
             }
           >
-            {inCart ? text.inCart : text.addCart}
+            <span className="inline-block" ref={addLabel}>
+              {inCart ? text.inCart : text.addCart}
+            </span>
           </ActionButton>
           <ActionButton
             aria-label={wished ? text.removeWish : text.saveWish}
@@ -88,7 +244,9 @@ export function BookCard({ book }: { book: Book }) {
             }}
             tone={wished ? "yellow" : "surface"}
           >
-            <Heart className={wished ? "fill-[#141210]" : ""} />
+            <span className="inline-flex" ref={wishIcon}>
+              <Heart className={wished ? "fill-[#141210]" : ""} />
+            </span>
           </ActionButton>
         </div>
       </div>

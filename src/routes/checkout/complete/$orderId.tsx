@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useRef } from "react";
 import { ActionButton } from "@/components/store/action-button";
 import { EmptyState } from "@/components/store/layout";
 import { formatNumber, formatPrice, readingHours } from "@/lib/catalog";
 import { t } from "@/lib/i18n";
+import { gsap, useGSAP, useRouteEntrance, withMotion } from "@/lib/motion";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/checkout/complete/$orderId")({
@@ -10,18 +12,48 @@ export const Route = createFileRoute("/checkout/complete/$orderId")({
 });
 
 function CompletePage() {
+  const route = useRouteEntrance<HTMLDivElement>();
+  const stamp = useRef<HTMLSpanElement>(null);
   const { orderId } = Route.useParams();
   const locale = useStore((state) => state.locale);
   const orders = useStore((state) => state.orders);
   const hydrated = useStore((state) => state.hydrated);
   const text = t(locale);
   const order = orders.find((entry) => entry.id === orderId);
+  useGSAP(
+    () =>
+      withMotion(() => {
+        if (stamp.current?.isConnected && hydrated && order) {
+          gsap.fromTo(
+            stamp.current,
+            {
+              autoAlpha: 0,
+              rotation: -12,
+              scale: 1.8,
+            },
+            {
+              autoAlpha: 1,
+              clearProps: "opacity,visibility,transform",
+              delay: 0.25,
+              duration: 0.6,
+              ease: "back.out(1.8)",
+              rotation: -3,
+              scale: 1,
+            }
+          );
+        }
+      }),
+    { dependencies: [hydrated, orderId], revertOnUpdate: true, scope: route }
+  );
   return (
-    <div className="mx-auto max-w-5xl px-5 pt-12 sm:px-6">
+    <div className="mx-auto max-w-5xl px-5 pt-12 sm:px-6" ref={route}>
       {hydrated ? (
         order ? (
           <div className="border-[3px] border-line bg-green p-7 text-[#141210] shadow-[8px_8px_0_var(--line)] sm:p-12">
-            <span className="inline-block -rotate-3 border-[#141210] border-[3px] bg-white px-3 py-1 font-bold font-data text-xs">
+            <span
+              className="inline-block -rotate-3 border-[#141210] border-[3px] bg-white px-3 py-1 font-bold font-data text-xs"
+              ref={stamp}
+            >
               {text.orderCode} #{order.id.slice(0, 8).toUpperCase()}
             </span>
             <h1 className="mt-7 max-w-[15ch] font-display text-4xl leading-tight sm:text-6xl">
