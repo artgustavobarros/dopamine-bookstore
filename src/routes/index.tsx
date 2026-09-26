@@ -1,13 +1,14 @@
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search, SlidersHorizontal } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActionButton } from "@/components/store/action-button";
 import { BookCard } from "@/components/store/book-card";
+import { EmptyState } from "@/components/store/layout";
 import { Input } from "@/components/ui/input";
 import {
-  authors,
-  books,
   type CatalogFilters,
+  catalogAuthors,
   filterBooks,
   formatNumber,
   type Genre,
@@ -22,6 +23,7 @@ import {
   useGSAP,
   withMotion,
 } from "@/lib/motion";
+import { catalogQuery } from "@/lib/open-library";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/")({ component: Home });
@@ -37,11 +39,34 @@ const defaultFilters: CatalogFilters = {
 function Home() {
   const hero = useRef<HTMLElement>(null);
   const locale = useStore((state) => state.locale);
+  const hydrated = useStore((state) => state.hydrated);
+  const refreshBooks = useStore((state) => state.refreshBooks);
   const text = t(locale);
   const [filters, setFilters] = useState<CatalogFilters>(defaultFilters);
-  const filtered = filterBooks(filters);
+  const [searchTerm, setSearchTerm] = useState("");
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setSearchTerm(filters.query.trim()),
+      700
+    );
+    return () => window.clearTimeout(timer);
+  }, [filters.query]);
+  const query = useQuery({
+    ...catalogQuery(locale, searchTerm),
+    enabled: hydrated,
+  });
+  const isSearchPending = filters.query.trim() !== searchTerm;
+  const books = isSearchPending ? [] : (query.data ?? []);
+  const filtered = filterBooks(books, filters);
+  const authors = catalogAuthors(books);
   const filteredIds = filtered.map((book) => book.id).join(",");
-  const featured = [books[3], books[0], books[15]];
+  const featured = books.slice(0, 3);
+  const featuredIds = featured.map((book) => book.id).join(",");
+  useEffect(() => {
+    if (query.data) {
+      refreshBooks(query.data);
+    }
+  }, [query.data, refreshBooks]);
   const update = <K extends keyof CatalogFilters>(
     key: K,
     value: CatalogFilters[K]
@@ -79,17 +104,6 @@ function Home() {
             0.2
           )
           .from(
-            root.querySelectorAll("[data-hero-book]"),
-            {
-              autoAlpha: 0,
-              clearProps: "opacity,visibility,transform",
-              duration: 0.55,
-              stagger: 0.1,
-              y: -60,
-            },
-            0.3
-          )
-          .from(
             root.querySelectorAll("[data-hero-seal]"),
             {
               autoAlpha: 0,
@@ -108,6 +122,24 @@ function Home() {
         };
       }),
     { scope: hero }
+  );
+
+  useGSAP(
+    () =>
+      withMotion(() => {
+        const cards = hero.current?.querySelectorAll("[data-hero-book]");
+        if (cards?.length) {
+          gsap.from(cards, {
+            autoAlpha: 0,
+            clearProps: "opacity,visibility,transform",
+            duration: 0.55,
+            ease: "back.out(1.2)",
+            stagger: 0.1,
+            y: -60,
+          });
+        }
+      }),
+    { dependencies: [featuredIds], revertOnUpdate: true, scope: hero }
   );
 
   useGSAP(
@@ -175,7 +207,7 @@ function Home() {
       });
       return () => media.revert();
     },
-    { scope: hero }
+    { dependencies: [featuredIds], revertOnUpdate: true, scope: hero }
   );
 
   useGSAP(
@@ -224,15 +256,32 @@ function Home() {
             />
             {featured.map((book, index) => (
               <div
-                className={`absolute flex aspect-[0.7] w-[33%] flex-col justify-between border-[#141210] border-[3px] p-2 shadow-[5px_5px_0_#141210] sm:p-3 ${index === 0 ? "top-[22%] left-[15%] -rotate-[8deg] bg-red" : index === 1 ? "top-[17%] left-[40%] z-10 rotate-[2deg] bg-red" : "top-[21%] left-[63%] rotate-[9deg] bg-blue"}`}
+                className={`absolute flex aspect-[0.7] w-[33%] flex-col justify-end overflow-hidden border-[#141210] border-[3px] bg-[#141210] p-2 shadow-[5px_5px_0_#141210] sm:p-3 ${index === 0 ? "top-[22%] left-[15%] -rotate-[8deg]" : index === 1 ? "top-[17%] left-[40%] z-10 rotate-[2deg]" : "top-[21%] left-[63%] rotate-[9deg]"}`}
                 data-hero-book
                 key={book.id}
               >
-                <strong className="border-2 border-[#141210] bg-white p-1 font-display text-[clamp(0.65rem,1.2vw,1rem)] leading-tight sm:p-2">
-                  {book.title[locale]}
-                </strong>
-                <span className="w-fit bg-[#141210] px-1 py-0.5 font-data text-[9px] text-white sm:px-2 sm:text-xs">
-                  {formatNumber(book.pages, locale)} p.
+                {book.coverId ? (
+                  <img
+                    alt={book.title[locale]}
+                    className="absolute inset-0 h-full w-full object-cover"
+                    height={300}
+                    src={`https://covers.openlibrary.org/b/id/${book.coverId}-M.jpg`}
+                    width={200}
+                  />
+                ) : (
+                  <div
+                    aria-hidden="true"
+                    className="absolute inset-0 bg-[#141210] bg-[length:10px_10px] bg-[radial-gradient(#ffffff22_1.4px,transparent_1.5px)]"
+                  />
+                )}
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#141210]/80 via-transparent to-transparent"
+                />
+                <span className="relative z-10 w-fit bg-[#141210] px-1 py-0.5 font-data text-[9px] text-white sm:px-2 sm:text-xs">
+                  {book.pages === null
+                    ? text.pagesUnknown
+                    : `${formatNumber(book.pages, locale)} p.`}
                 </span>
               </div>
             ))}
@@ -248,11 +297,11 @@ function Home() {
             <p className="absolute bottom-[4%] left-[4%] z-20 max-w-[45%] border-[#141210] border-[3px] bg-white px-2 py-1 font-bold font-data text-[9px] shadow-[4px_4px_0_#141210] sm:px-3 sm:py-2 sm:text-xs">
               {locale === "pt"
                 ? `Em destaque: ${formatNumber(
-                    featured.reduce((sum, book) => sum + book.pages, 0),
+                    featured.reduce((sum, book) => sum + (book.pages ?? 0), 0),
                     locale
                   )} páginas que você não vai ler.`
                 : `Featured: ${formatNumber(
-                    featured.reduce((sum, book) => sum + book.pages, 0),
+                    featured.reduce((sum, book) => sum + (book.pages ?? 0), 0),
                     locale
                   )} pages you won't read.`}
             </p>
@@ -326,11 +375,7 @@ function Home() {
               <option value="all">{text.allAuthors}</option>
               {authors.map((author) => (
                 <option key={author} value={author}>
-                  {
-                    books.find((book) => book.author.pt === author)?.author[
-                      locale
-                    ]
-                  }
+                  {author}
                 </option>
               ))}
             </select>
@@ -352,22 +397,41 @@ function Home() {
             </select>
           </label>
         </div>
-        {filtered.length > 0 ? (
+        {!hydrated || isSearchPending || query.isPending ? (
+          <div
+            aria-busy="true"
+            aria-live="polite"
+            className="border-[3px] border-line border-dashed bg-surface p-10 text-center font-display text-2xl"
+          >
+            {text.loadingBooks}
+          </div>
+        ) : query.isError ? (
+          <EmptyState
+            action={text.retry}
+            description={text.remoteErrorDetail}
+            onAction={() => query.refetch()}
+            title={text.remoteError}
+          />
+        ) : books.length === 0 ? (
+          <EmptyState
+            action={searchTerm ? text.clearFilters : text.retry}
+            onAction={() =>
+              searchTerm ? setFilters(defaultFilters) : query.refetch()
+            }
+            title={text.remoteEmpty}
+          />
+        ) : filtered.length > 0 ? (
           <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filtered.map((book, index) => (
               <BookCard book={book} key={book.id} revealIndex={index} />
             ))}
           </div>
         ) : (
-          <div className="border-[3px] border-line border-dashed p-10 text-center">
-            <p className="font-display text-2xl">{text.noResults}</p>
-            <ActionButton
-              className="mt-5"
-              onClick={() => setFilters(defaultFilters)}
-            >
-              {text.clearFilters}
-            </ActionButton>
-          </div>
+          <EmptyState
+            action={text.clearFilters}
+            onAction={() => setFilters(defaultFilters)}
+            title={text.noResults}
+          />
         )}
       </section>
     </>

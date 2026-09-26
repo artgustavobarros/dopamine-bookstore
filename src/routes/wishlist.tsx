@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ActionButton } from "@/components/store/action-button";
 import { BookCard } from "@/components/store/book-card";
 import { EmptyState } from "@/components/store/layout";
-import { type Book, booksById } from "@/lib/catalog";
+import type { Book } from "@/lib/catalog";
 import { t } from "@/lib/i18n";
 import { useRouteEntrance } from "@/lib/motion";
 import { useStore } from "@/lib/store";
@@ -13,11 +13,12 @@ function WishlistPage() {
   const route = useRouteEntrance<HTMLDivElement>();
   const locale = useStore((state) => state.locale);
   const ids = useStore((state) => state.wishlistIds);
+  const bookCache = useStore((state) => state.bookCache);
   const hydrated = useStore((state) => state.hydrated);
   const moveAll = useStore((state) => state.moveWishesToCart);
   const text = t(locale);
   const selected = ids
-    .map((id) => booksById.get(id))
+    .map((id) => bookCache[id])
     .filter((book): book is Book => Boolean(book));
   return (
     <div className="mx-auto max-w-7xl px-5 pt-12 sm:px-6" ref={route}>

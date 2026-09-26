@@ -35,6 +35,15 @@ export function BookCover({
           {book.author[locale]}
         </span>
       </div>
+      {book.coverId === null ? null : (
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-center bg-cover"
+          style={{
+            backgroundImage: `url(https://covers.openlibrary.org/b/id/${book.coverId}-${large ? "L" : "M"}.jpg?default=false)`,
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,7 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Heart, Star } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -10,10 +11,11 @@ import { BookCover } from "@/components/store/book-cover";
 import { EmptyState } from "@/components/store/layout";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  booksById,
+  type Book,
   formatNumber,
   formatPrice,
   genreLabels,
+  type Locale,
   readingHours,
 } from "@/lib/catalog";
 import { t } from "@/lib/i18n";
@@ -24,7 +26,9 @@ import {
   useRouteEntrance,
   withMotion,
 } from "@/lib/motion";
-import { type Review, useStore } from "@/lib/store";
+import { bookQuery } from "@/lib/open-library";
+import { handleAddBookWithMilestones } from "@/lib/roast-trigger";
+import { getCartBooks, type Review, useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/books/$bookId")({
   component: BookDetail,
@@ -37,6 +41,39 @@ const reviewSchema = z.object({
 type ReviewFields = z.infer<typeof reviewSchema>;
 const emptyReviews: Review[] = [];
 
+function BookMetadata({ book, locale }: { book: Book; locale: Locale }) {
+  const text = t(locale);
+  const { pages } = book;
+  return (
+    <div className="grid w-full grid-cols-3 border-[3px] border-line bg-surface">
+      <div className="border-line border-r-[3px] p-3 sm:p-5">
+        <span className="block font-data text-[10px] uppercase sm:text-xs">
+          {text.pages}
+        </span>
+        <strong className="font-display text-xl sm:text-2xl">
+          {pages === null ? "—" : formatNumber(pages, locale)}
+        </strong>
+      </div>
+      <div className="border-line border-r-[3px] p-3 sm:p-5">
+        <span className="block font-data text-[10px] uppercase sm:text-xs">
+          {text.reading}
+        </span>
+        <strong className="font-display text-xl sm:text-2xl">
+          {pages === null ? "—" : `~${readingHours(pages)}h`}
+        </strong>
+      </div>
+      <div className="p-3 sm:p-5">
+        <span className="block font-data text-[10px] uppercase sm:text-xs">
+          {text.sessions}
+        </span>
+        <strong className="font-display text-xl sm:text-2xl">
+          {pages === null ? "—" : Math.ceil(pages / 20)}
+        </strong>
+      </div>
+    </div>
+  );
+}
+
 function BookDetail() {
   const route = useRouteEntrance<HTMLDivElement>();
   const addLabel = useRef<HTMLSpanElement>(null);
@@ -44,7 +81,6 @@ function BookDetail() {
   const lastCart = useRef<boolean | null>(null);
   const lastWish = useRef<boolean | null>(null);
   const { bookId } = Route.useParams();
-  const book = booksById.get(bookId);
   const locale = useStore((state) => state.locale);
   const profile = useStore((state) => state.profile);
   const cartIds = useStore((state) => state.cartIds);
@@ -52,6 +88,14 @@ function BookDetail() {
   const reviewsByBook = useStore((state) => state.reviews);
   const reviews = reviewsByBook[bookId] ?? emptyReviews;
   const hydrated = useStore((state) => state.hydrated);
+  const refreshBooks = useStore((state) => state.refreshBooks);
+  const query = useQuery({ ...bookQuery(bookId, locale), enabled: hydrated });
+  const book = query.data?.status === "available" ? query.data.book : null;
+  useEffect(() => {
+    if (book) {
+      refreshBooks([book]);
+    }
+  }, [book, refreshBooks]);
   const addCart = useStore((state) => state.addCart);
   const toggleWish = useStore((state) => state.toggleWish);
   const addReview = useStore((state) => state.addReview);
@@ -114,10 +158,40 @@ function BookDetail() {
     }
   );
 
+  if (!hydrated || query.isPending) {
+    return (
+      <div
+        aria-busy="true"
+        className="mx-auto max-w-5xl px-5 pt-14"
+        ref={route}
+      >
+        {text.loadingBooks}
+      </div>
+    );
+  }
+  if (query.isError) {
+    return (
+      <div className="mx-auto max-w-5xl px-5 pt-14" ref={route}>
+        <EmptyState
+          action={text.retry}
+          description={text.remoteErrorDetail}
+          onAction={() => query.refetch()}
+          title={text.remoteError}
+        />
+      </div>
+    );
+  }
   if (!book) {
     return (
       <div className="mx-auto max-w-5xl px-5 pt-14" ref={route}>
-        <EmptyState action={text.goHome} title={text.notFound} />
+        <EmptyState
+          action={text.goHome}
+          title={
+            query.data?.status === "language-unavailable"
+              ? text.languageUnavailable
+              : text.notFound
+          }
+        />
       </div>
     );
   }
@@ -167,34 +241,10 @@ function BookDetail() {
             {book.title[locale]}
           </h1>
           <p className="font-semibold text-xl">
-            {book.author[locale]} · {book.year}
+            {book.author[locale]}
+            {book.year !== null && ` · ${book.year}`}
           </p>
-          <div className="grid w-full grid-cols-3 border-[3px] border-line bg-surface">
-            <div className="border-line border-r-[3px] p-3 sm:p-5">
-              <span className="block font-data text-[10px] uppercase sm:text-xs">
-                {text.pages}
-              </span>
-              <strong className="font-display text-xl sm:text-2xl">
-                {formatNumber(book.pages, locale)}
-              </strong>
-            </div>
-            <div className="border-line border-r-[3px] p-3 sm:p-5">
-              <span className="block font-data text-[10px] uppercase sm:text-xs">
-                {text.reading}
-              </span>
-              <strong className="font-display text-xl sm:text-2xl">
-                ~{readingHours(book.pages)}h
-              </strong>
-            </div>
-            <div className="p-3 sm:p-5">
-              <span className="block font-data text-[10px] uppercase sm:text-xs">
-                {text.sessions}
-              </span>
-              <strong className="font-display text-xl sm:text-2xl">
-                {Math.ceil(book.pages / 20)}
-              </strong>
-            </div>
-          </div>
+          <BookMetadata book={book} locale={locale} />
           <p className="max-w-[55ch] text-lg leading-relaxed">
             {book.description[locale]}
           </p>
@@ -208,14 +258,31 @@ function BookDetail() {
               </del>
             )}
           </div>
+          <span className="font-data text-xs uppercase">{text.demoPrice}</span>
           <div className="flex flex-wrap gap-4">
             <ActionButton
               disabled={!hydrated}
-              onClick={() =>
-                toast.info(
-                  addCart(book.id) ? text.addedToast : text.duplicateToast
-                )
-              }
+              onClick={async () => {
+                if (inCart) {
+                  toast.info(text.duplicateToast);
+                  return;
+                }
+                const cartBooks = getCartBooks(
+                  useStore.getState().cartIds,
+                  useStore.getState().bookCache
+                );
+                const added = addCart(book);
+                if (added) {
+                  toast.info(text.addedToast);
+                  await handleAddBookWithMilestones({
+                    book,
+                    cartBooks,
+                    locale,
+                    onAddedSuccess: () => true,
+                    onDuplicate: () => undefined,
+                  });
+                }
+              }}
             >
               <span className="inline-block" ref={addLabel}>
                 {inCart ? text.inCart : text.addCart}
@@ -225,7 +292,7 @@ function BookDetail() {
               aria-pressed={wished}
               disabled={!hydrated}
               onClick={() => {
-                if (toggleWish(book.id)) {
+                if (toggleWish(book)) {
                   toast.info(text.wishToast);
                 }
               }}

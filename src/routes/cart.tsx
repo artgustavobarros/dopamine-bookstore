@@ -14,11 +14,12 @@ function CartPage() {
   const route = useRouteEntrance<HTMLDivElement>();
   const locale = useStore((state) => state.locale);
   const ids = useStore((state) => state.cartIds);
+  const bookCache = useStore((state) => state.bookCache);
   const remove = useStore((state) => state.removeCart);
   const hydrated = useStore((state) => state.hydrated);
   const text = t(locale);
-  const selected = getCartBooks(ids);
-  const totals = getCartTotals(ids);
+  const selected = getCartBooks(ids, bookCache);
+  const totals = getCartTotals(ids, bookCache);
   useInsertedPanelMotion(route, [hydrated, selected.length]);
   return (
     <div className="mx-auto max-w-7xl px-5 pt-12 sm:px-6" ref={route}>
@@ -54,12 +55,19 @@ function CartPage() {
                       {book.author[locale]}
                     </p>
                     <p className="font-data text-xs">
-                      {formatNumber(book.pages, locale)} p. · ~
-                      {readingHours(book.pages)}h
+                      {book.pages === null
+                        ? text.pagesUnknown
+                        : `${formatNumber(book.pages, locale)} p. · ~${readingHours(book.pages)}h`}
                     </p>
+                    {book.sourceLocale !== locale && (
+                      <p className="text-xs">{text.savedLanguageNotice}</p>
+                    )}
                     <strong className="mt-auto font-display text-xl">
                       {formatPrice(book.price, locale)}
                     </strong>
+                    <span className="font-data text-[10px] uppercase">
+                      {text.demoPrice}
+                    </span>
                   </div>
                   <button
                     aria-label={`${text.remove}: ${book.title[locale]}`}

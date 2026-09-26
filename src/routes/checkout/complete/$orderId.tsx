@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { ActionButton } from "@/components/store/action-button";
 import { EmptyState } from "@/components/store/layout";
 import { formatNumber, formatPrice, readingHours } from "@/lib/catalog";
 import { t } from "@/lib/i18n";
 import { gsap, useGSAP, useRouteEntrance, withMotion } from "@/lib/motion";
+import { showRoastToast } from "@/lib/roast-toast";
+import { generateRoastFn } from "@/lib/server/roast";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/checkout/complete/$orderId")({
@@ -14,12 +16,38 @@ export const Route = createFileRoute("/checkout/complete/$orderId")({
 function CompletePage() {
   const route = useRouteEntrance<HTMLDivElement>();
   const stamp = useRef<HTMLSpanElement>(null);
+  const completeRoastFired = useRef(false);
   const { orderId } = Route.useParams();
   const locale = useStore((state) => state.locale);
   const orders = useStore((state) => state.orders);
   const hydrated = useStore((state) => state.hydrated);
   const text = t(locale);
   const order = orders.find((entry) => entry.id === orderId);
+
+  useEffect(() => {
+    let active = true;
+    async function triggerRoast() {
+      if (hydrated && order && !completeRoastFired.current) {
+        completeRoastFired.current = true;
+        const roast = await generateRoastFn({
+          data: {
+            event: "order_completed",
+            locale,
+            paymentMethod: order.method,
+            pretendSpend: order.totalPrice,
+            totalPages: order.totalPages,
+          },
+        });
+        if (active) {
+          showRoastToast(roast);
+        }
+      }
+    }
+    triggerRoast();
+    return () => {
+      active = false;
+    };
+  }, [hydrated, order, locale]);
   useGSAP(
     () =>
       withMotion(() => {

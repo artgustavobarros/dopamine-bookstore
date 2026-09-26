@@ -1,0 +1,33 @@
+# Dopamine Bookstore (Depois Eu Leio)
+
+> Dopamine Bookstore (Depois Eu Leio) is an educational portfolio project and simulated e-commerce application. It playfully celebrates the joy of collecting and reading books while providing a zero-cost demonstration environment.
+
+## Simulation Status & Marketplace Confirmation
+
+**IMPORTANT**: Dopamine Bookstore is **NOT a real marketplace**.
+- All purchases, shopping carts, and checkouts are **strictly simulated** for demonstration and portfolio showcase purposes.
+- Zero monetary currency (R$ 0,00 / $0.00) is charged. No credit card, bank account, or Pix information is ever requested or processed.
+- No physical books or digital goods are shipped.
+- User profiles, carts, wishlists, and imaginary order histories are stored strictly in client-side browser storage (IndexedDB/localStorage) and never transmitted to real payment processors.
+
+## Purpose & Architecture
+
+Dopamine Bookstore was engineered to showcase modern web application architecture:
+- **Framework**: React 19 with TanStack Start, TanStack Router, and Vite
+- **Data & State**: TanStack Query (React Query) communicating with the public Open Library API with 1-hour query caching; Zustand for local storefront state
+- **UI & Animation**: Tailwind CSS with brutalist design aesthetics, offset shadows, and GSAP pointer/scroll physics
+- **Internationalization**: Bilingual support (Portuguese and English) with language-aware catalog search and localization
+
+## Canonical Pages
+
+- [/ (Storefront Catalog)](https://dopamine-bookstore.vercel.app/): Main storefront showcasing featured books, category filtering, search, and reading catalog powered by Open Library.
+- [/wishlist (Wishlist)](https://dopamine-bookstore.vercel.app/wishlist): Client-side list of books saved for later.
+- [/orders (Simulated Orders)](https://dopamine-bookstore.vercel.app/orders): History of imaginary purchases and saved balance.
+- [/stats (Reading Statistics)](https://dopamine-bookstore.vercel.app/stats): Fun dashboard calculating unread pages, accumulated hours, and money not spent.
+- [/cart (Shopping Cart)](https://dopamine-bookstore.vercel.app/cart): Interactive cart allowing simulated checkout.
+- [/account (Demo Profile)](https://dopamine-bookstore.vercel.app/account): In-browser pseudonym identity management.
+- [/pricing.md (Pricing for AI Agents)](https://dopamine-bookstore.vercel.app/pricing.md): Machine-readable pricing specification confirming zero monetary cost.
+
+## Pricing
+
+All items are priced at R$ 0,00 (free demonstration). Detailed machine-readable pricing breakdown available at `/pricing.md`.

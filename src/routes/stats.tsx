@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ActionButton } from "@/components/store/action-button";
+import { ReaderRoastCard } from "@/components/store/reader-roast-card";
 import {
   formatNumber,
   formatPrice,
@@ -87,6 +88,11 @@ function StatsPage() {
               </article>
             ))}
           </div>
+          <ReaderRoastCard
+            hydrated={hydrated}
+            locale={locale}
+            orders={orders}
+          />
           {stats.orderCount === 0 && (
             <div className="mt-10 border-[3px] border-line border-dashed p-7 text-center">
               <p className="font-semibold">{text.noStats}</p>

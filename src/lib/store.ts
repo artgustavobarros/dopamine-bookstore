@@ -5,7 +5,9 @@ import {
   persist,
   type StateStorage,
 } from "zustand/middleware";
-import { type Book, booksById, type Locale } from "./catalog";
+import { type Book, bookSchema, type Locale } from "./catalog";
+
+const bookIdPattern = /^OL\d+W$/;
 
 const profileSchema = z.object({ email: z.email(), name: z.string().min(1) });
 const reviewSchema = z.object({
@@ -19,7 +21,7 @@ const itemSchema = z.object({
   author: z.object({ en: z.string(), pt: z.string() }),
   genre: z.string(),
   id: z.string(),
-  pages: z.number().int().positive(),
+  pages: z.number().int().nonnegative(),
   price: z.number().nonnegative(),
   title: z.object({ en: z.string(), pt: z.string() }),
 });
@@ -33,6 +35,7 @@ const orderSchema = z.object({
   totalPrice: z.number().nonnegative(),
 });
 const savedSchema = z.object({
+  bookCache: z.record(z.string(), bookSchema),
   cartIds: z.array(z.string()),
   locale: z.enum(["pt", "en"]),
   orders: z.array(orderSchema),
@@ -50,15 +53,16 @@ export type Theme = "light" | "dark";
 
 type AppState = z.infer<typeof savedSchema> & {
   hydrated: boolean;
-  addCart: (id: string) => boolean;
+  addCart: (book: Book) => boolean;
   removeCart: (id: string) => void;
-  toggleWish: (id: string) => boolean;
+  toggleWish: (book: Book) => boolean;
   moveWishesToCart: () => void;
   setProfile: (profile: Profile | null) => void;
   addReview: (bookId: string, stars: number, text: string) => void;
   completeOrder: (method: PaymentMethod) => string | null;
   setLocale: (locale: Locale) => void;
   setTheme: (theme: Theme) => void;
+  refreshBooks: (books: Book[]) => void;
 };
 
 const memory = new Map<string, string>();
@@ -87,6 +91,7 @@ const safeStorage: StateStorage = {
 };
 
 const initial = {
+  bookCache: {} as Record<string, Book>,
   cartIds: [] as string[],
   hydrated: false,
   locale: "pt" as Locale,
@@ -101,16 +106,22 @@ export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
       ...initial,
-      addCart(id) {
-        if (!booksById.has(id) || get().cartIds.includes(id)) {
+      addCart(book) {
+        if (
+          !bookSchema.safeParse(book).success ||
+          get().cartIds.includes(book.id)
+        ) {
           return false;
         }
-        set((state) => ({ cartIds: [...state.cartIds, id] }));
+        set((state) => ({
+          bookCache: { ...state.bookCache, [book.id]: book },
+          cartIds: [...state.cartIds, book.id],
+        }));
         return true;
       },
       addReview(bookId, stars, text) {
         const { profile } = get();
-        if (!(profile && booksById.has(bookId))) {
+        if (!(profile && bookIdPattern.test(bookId))) {
           return;
         }
         const review: Review = {
@@ -133,13 +144,13 @@ export const useStore = create<AppState>()(
           return null;
         }
         const items = cartIds
-          .map((id) => booksById.get(id))
+          .map((id) => get().bookCache[id])
           .filter((book): book is Book => Boolean(book))
           .map(({ id, title, author, genre, pages, price }) => ({
             author,
             genre,
             id,
-            pages,
+            pages: pages ?? 0,
             price,
             title,
           }));
@@ -163,6 +174,22 @@ export const useStore = create<AppState>()(
           wishlistIds: [],
         }));
       },
+      refreshBooks(books) {
+        set((state) => {
+          const next = { ...state.bookCache };
+          let changed = false;
+          for (const book of books) {
+            if (
+              next[book.id] &&
+              JSON.stringify(next[book.id]) !== JSON.stringify(book)
+            ) {
+              next[book.id] = book;
+              changed = true;
+            }
+          }
+          return changed ? { bookCache: next } : state;
+        });
+      },
       removeCart(id) {
         set((state) => ({
           cartIds: state.cartIds.filter((entry) => entry !== id),
@@ -177,15 +204,16 @@ export const useStore = create<AppState>()(
       setTheme(theme) {
         set({ theme });
       },
-      toggleWish(id) {
-        if (!booksById.has(id)) {
+      toggleWish(book) {
+        if (!bookSchema.safeParse(book).success) {
           return false;
         }
-        const adding = !get().wishlistIds.includes(id);
+        const adding = !get().wishlistIds.includes(book.id);
         set((state) => ({
+          bookCache: { ...state.bookCache, [book.id]: book },
           wishlistIds: adding
-            ? [...state.wishlistIds, id]
-            : state.wishlistIds.filter((entry) => entry !== id),
+            ? [...state.wishlistIds, book.id]
+            : state.wishlistIds.filter((entry) => entry !== book.id),
         }));
         return adding;
       },
@@ -200,22 +228,34 @@ export const useStore = create<AppState>()(
           ...current,
           ...parsed.data,
           cartIds: [
-            ...new Set(parsed.data.cartIds.filter((id) => booksById.has(id))),
+            ...new Set(
+              parsed.data.cartIds.filter((id) => parsed.data.bookCache[id])
+            ),
           ],
           reviews: Object.fromEntries(
             Object.entries(parsed.data.reviews).filter(([id]) =>
-              booksById.has(id)
+              bookIdPattern.test(id)
             )
           ),
           wishlistIds: [
             ...new Set(
-              parsed.data.wishlistIds.filter((id) => booksById.has(id))
+              parsed.data.wishlistIds.filter((id) => parsed.data.bookCache[id])
             ),
           ],
         };
       },
+      migrate: (persisted) => {
+        const legacy = savedSchema
+          .omit({ bookCache: true })
+          .safeParse(persisted);
+        if (!legacy.success) {
+          return initial;
+        }
+        return { ...legacy.data, bookCache: {}, cartIds: [], wishlistIds: [] };
+      },
       name: "depois-eu-leio-v1",
       partialize: (state) => ({
+        bookCache: state.bookCache,
         cartIds: state.cartIds,
         locale: state.locale,
         orders: state.orders,
@@ -226,21 +266,24 @@ export const useStore = create<AppState>()(
       }),
       skipHydration: true,
       storage: createJSONStorage(() => safeStorage),
-      version: 1,
+      version: 2,
     }
   )
 );
 
-export function getCartBooks(ids: string[]): Book[] {
+export function getCartBooks(
+  ids: string[],
+  bookCache: Record<string, Book>
+): Book[] {
   return ids
-    .map((id) => booksById.get(id))
+    .map((id) => bookCache[id])
     .filter((book): book is Book => Boolean(book));
 }
 
-export function getCartTotals(ids: string[]) {
-  const selected = getCartBooks(ids);
+export function getCartTotals(ids: string[], bookCache: Record<string, Book>) {
+  const selected = getCartBooks(ids, bookCache);
   return {
-    pages: selected.reduce((sum, book) => sum + book.pages, 0),
+    pages: selected.reduce((sum, book) => sum + (book.pages ?? 0), 0),
     savings: selected.reduce(
       (sum, book) =>
         sum + Math.max(0, (book.oldPrice ?? book.price) - book.price),

@@ -1,0 +1,42 @@
+# Robots.txt for Dopamine Bookstore (Depois Eu Leio)
+# Educational portfolio demonstration / simulated bookstore
+
+User-agent: *
+Allow: /
+
+# Search Engine Crawlers
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+# AI Crawlers & Answer Engines (AEO / GEO)
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+# Common Crawl (Training only scraper)
+User-agent: CCBot
+Disallow: /
+
+Sitemap: /sitemap.xml
+# Context for LLMs & AI Search Engines
+# LLMs-Txt: /llms.txt

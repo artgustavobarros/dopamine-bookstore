@@ -295,16 +295,32 @@ export function StoreLayout() {
 export function EmptyState({
   title,
   action,
+  description,
+  onAction,
 }: {
   title: string;
   action?: string;
+  description?: string;
+  onAction?: () => void;
 }) {
   return (
-    <div className="border-[3px] border-line border-dashed bg-surface p-8 text-center sm:p-12">
+    <div
+      aria-live="polite"
+      className="border-[3px] border-line border-dashed bg-surface p-8 text-center sm:p-12"
+    >
       <p className="font-display text-2xl sm:text-3xl">{title}</p>
-      <ActionButton asChild className="mt-6">
-        <Link to="/">{action ?? "Voltar à loja"}</Link>
-      </ActionButton>
+      {description ? (
+        <p className="mx-auto mt-3 max-w-md">{description}</p>
+      ) : null}
+      {onAction ? (
+        <ActionButton className="mt-6" onClick={onAction}>
+          {action ?? "Tentar novamente"}
+        </ActionButton>
+      ) : (
+        <ActionButton asChild className="mt-6">
+          <Link to="/">{action ?? "Voltar à loja"}</Link>
+        </ActionButton>
+      )}
     </div>
   );
 }

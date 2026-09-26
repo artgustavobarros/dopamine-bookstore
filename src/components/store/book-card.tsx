@@ -11,7 +11,8 @@ import {
 } from "@/lib/catalog";
 import { t } from "@/lib/i18n";
 import { gsap, POINTER_QUERY, useGSAP, withMotion } from "@/lib/motion";
-import { useStore } from "@/lib/store";
+import { handleAddBookWithMilestones } from "@/lib/roast-trigger";
+import { getCartBooks, useStore } from "@/lib/store";
 import { ActionButton } from "./action-button";
 import { BookCover } from "./book-cover";
 
@@ -205,8 +206,12 @@ export function BookCard({
         </Link>
         <p className="font-medium text-sm">{book.author[locale]}</p>
         <div className="mt-auto flex justify-between gap-2 border-line border-t-2 pt-3 font-data text-xs">
-          <span>{formatNumber(book.pages, locale)} p.</span>
-          <span>~{readingHours(book.pages)}h</span>
+          <span>
+            {book.pages === null
+              ? text.pagesUnknown
+              : `${formatNumber(book.pages, locale)} p.`}
+          </span>
+          {book.pages !== null && <span>~{readingHours(book.pages)}h</span>}
         </div>
         <div className="flex items-baseline gap-2">
           <strong className="font-display text-xl">
@@ -218,15 +223,37 @@ export function BookCard({
             </del>
           )}
         </div>
+        <span className="font-data text-[10px] uppercase">
+          {text.demoPrice}
+        </span>
+        {book.sourceLocale !== locale && (
+          <p className="text-xs">{text.savedLanguageNotice}</p>
+        )}
         <div className="flex gap-2">
           <ActionButton
             className="min-w-0 flex-1 px-2 text-xs sm:text-sm"
             disabled={!hydrated}
-            onClick={() =>
-              toast.info(
-                addCart(book.id) ? text.addedToast : text.duplicateToast
-              )
-            }
+            onClick={async () => {
+              if (inCart) {
+                toast.info(text.duplicateToast);
+                return;
+              }
+              const cartBooks = getCartBooks(
+                useStore.getState().cartIds,
+                useStore.getState().bookCache
+              );
+              const added = addCart(book);
+              if (added) {
+                toast.info(text.addedToast);
+                await handleAddBookWithMilestones({
+                  book,
+                  cartBooks,
+                  locale,
+                  onAddedSuccess: () => true,
+                  onDuplicate: () => undefined,
+                });
+              }
+            }}
           >
             <span className="inline-block" ref={addLabel}>
               {inCart ? text.inCart : text.addCart}
@@ -238,7 +265,7 @@ export function BookCard({
             className="w-11 p-0"
             disabled={!hydrated}
             onClick={() => {
-              if (toggleWish(book.id)) {
+              if (toggleWish(book)) {
                 toast.info(text.wishToast);
               }
             }}

@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -9,6 +10,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { formatNumber, formatPrice, readingHours } from "@/lib/catalog";
 import { t } from "@/lib/i18n";
 import { useInsertedPanelMotion, useRouteEntrance } from "@/lib/motion";
+import { showRoastToast } from "@/lib/roast-toast";
+import { generateRoastFn } from "@/lib/server/roast";
 import { getCartBooks, getCartTotals, useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/checkout/")({ component: CheckoutPage });
@@ -21,12 +24,43 @@ function CheckoutPage() {
   const locale = useStore((state) => state.locale);
   const profile = useStore((state) => state.profile);
   const cartIds = useStore((state) => state.cartIds);
+  const bookCache = useStore((state) => state.bookCache);
   const hydrated = useStore((state) => state.hydrated);
   const completeOrder = useStore((state) => state.completeOrder);
   const text = t(locale);
-  const selected = getCartBooks(cartIds);
-  const totals = getCartTotals(cartIds);
+  const selected = getCartBooks(cartIds, bookCache);
+  const totals = getCartTotals(cartIds, bookCache);
   const navigate = useNavigate();
+  const checkoutRoastFired = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+    async function triggerRoast() {
+      if (
+        hydrated &&
+        profile &&
+        selected.length > 0 &&
+        !checkoutRoastFired.current
+      ) {
+        checkoutRoastFired.current = true;
+        const roast = await generateRoastFn({
+          data: {
+            cartCount: selected.length,
+            event: "checkout_opened",
+            locale,
+            totalPages: totals.pages,
+          },
+        });
+        if (active) {
+          showRoastToast(roast);
+        }
+      }
+    }
+    triggerRoast();
+    return () => {
+      active = false;
+    };
+  }, [hydrated, profile, selected.length, totals.pages, locale]);
   const form = useForm<CheckoutFields>({
     defaultValues: { method: "none" },
     resolver: zodResolver(checkoutSchema),
@@ -114,7 +148,14 @@ function CheckoutPage() {
                     className="flex justify-between gap-4 border-[#141210]/30 border-b pb-3 text-sm"
                     key={book.id}
                   >
-                    <span>{book.title[locale]}</span>
+                    <span>
+                      {book.title[locale]}
+                      {book.sourceLocale !== locale && (
+                        <small className="ml-2 font-normal">
+                          ({text.savedLanguageNotice})
+                        </small>
+                      )}
+                    </span>
                     <strong className="whitespace-nowrap">
                       {formatPrice(book.price, locale)}
                     </strong>
