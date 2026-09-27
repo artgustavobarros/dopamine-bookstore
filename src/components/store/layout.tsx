@@ -14,6 +14,7 @@ import {
 import { Toaster } from "@/components/ui/sonner";
 import { t } from "@/lib/i18n";
 import { gsap, useGSAP, withMotion } from "@/lib/motion";
+import { dispatchIdle } from "@/lib/roast-trigger";
 import { useStore } from "@/lib/store";
 
 const destinations = [
@@ -75,6 +76,40 @@ export function StoreLayout() {
       scope: cartCount,
     }
   );
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    const resetTimer = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        dispatchIdle({
+          locale,
+          onBrowse: () => {
+            window.scrollTo({ behavior: "smooth", top: 400 });
+          },
+        });
+      }, 90000); // 90 seconds of inactivity
+    };
+
+    const activityEvents = [
+      "mousedown",
+      "mousemove",
+      "keydown",
+      "scroll",
+      "touchstart",
+    ];
+    activityEvents.forEach((ev) =>
+      window.addEventListener(ev, resetTimer, { passive: true })
+    );
+    resetTimer();
+
+    return () => {
+      clearTimeout(timer);
+      activityEvents.forEach((ev) =>
+        window.removeEventListener(ev, resetTimer)
+      );
+    };
+  }, [locale]);
 
   useGSAP(
     () => {

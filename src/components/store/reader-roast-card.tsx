@@ -83,11 +83,15 @@ export function ReaderRoastCard({
         },
       });
 
-      setDiagnosis(result);
+      const normalized =
+        "msg" in result
+          ? { roast: result.msg, tag: result.sfx }
+          : result;
+      setDiagnosis(normalized);
       try {
         sessionStorage.setItem(
           "depois_eu_leio_roast_diagnosis",
-          JSON.stringify(result)
+          JSON.stringify(normalized)
         );
       } catch {
         // Ignore session storage write errors

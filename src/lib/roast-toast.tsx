@@ -1,29 +1,88 @@
 import { toast } from "sonner";
-import type { RoastPayload } from "./roast-fallbacks";
+import { ComicToast, type ComicToastAction } from "@/components/ui/comic-toast";
+import type { EvaluatedRoast } from "./roasts";
 
-export function showRoastToast({ tag, roast }: RoastPayload) {
-  toast.custom(
+export interface ComicToastOptions {
+  action?: ComicToastAction | null;
+  duration?: number;
+  isAlert?: boolean;
+  message: string;
+  onClose?: () => void;
+  sfx: string;
+}
+
+export function calculateToastDuration(
+  message: string,
+  baseSeconds = 6
+): number {
+  const extraChars = Math.max(0, message.length - 80);
+  const extraMs = extraChars * 40;
+  return Math.min(12000, baseSeconds * 1000 + extraMs);
+}
+
+export function showComicToast({
+  sfx,
+  message,
+  action,
+  isAlert = false,
+  duration,
+  onClose,
+}: ComicToastOptions) {
+  const finalDuration = duration ?? calculateToastDuration(message);
+
+  return toast.custom(
     (t) => (
-      <div
-        className="relative flex w-full max-w-md flex-col gap-2 border-[3px] border-line bg-yellow p-4 text-ink shadow-[5px_5px_0_var(--line)]"
-        data-content
-      >
-        <div className="flex items-center justify-between gap-2">
-          <span className="border border-line bg-ink px-2 py-0.5 font-accent text-sm text-yellow uppercase tracking-wider">
-            {tag}
-          </span>
-          <button
-            aria-label="Fechar"
-            className="cursor-pointer font-bold font-data text-xs uppercase opacity-70 transition-opacity hover:opacity-100"
-            onClick={() => toast.dismiss(t)}
-            type="button"
-          >
-            ✕
-          </button>
-        </div>
-        <p className="font-body font-medium text-sm leading-snug">{roast}</p>
-      </div>
+      <ComicToast
+        action={action}
+        id={t}
+        isAlert={isAlert}
+        message={message}
+        onClose={onClose}
+        sfx={sfx}
+      />
     ),
-    { duration: 6500 }
+    {
+      className: "comic-toast-wrapper",
+      duration: finalDuration,
+    }
   );
 }
+
+export function showRoastToast(
+  roast:
+    | { roast: string; tag: string }
+    | EvaluatedRoast,
+  actionCallback?: () => void
+) {
+  if ("ruleId" in roast) {
+    const isP1Error =
+      roast.priority === 1 &&
+      (roast.event === "card-declined" || roast.event === "pix-expired");
+
+    const action = roast.action
+      ? {
+          label: roast.action.label,
+          onClick: () => {
+            actionCallback?.();
+          },
+        }
+      : null;
+
+    return showComicToast({
+      action,
+      duration: calculateToastDuration(roast.msg),
+      isAlert: isP1Error,
+      message: roast.msg,
+      sfx: roast.sfx,
+    });
+  }
+
+  // Fallback for simple payload
+  return showComicToast({
+    duration: calculateToastDuration(roast.roast),
+    message: roast.roast,
+    sfx: roast.tag || "OPA!",
+  });
+}
+
+export { ComicToast };

@@ -212,6 +212,45 @@ textarea {
     scale: 1;
   }
 }
+@keyframes del-truck {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes del-ping {
+  0% {
+    box-shadow: 0 0 0 0 oklch(90.5% 0.182 98.111 / 0.9);
+  }
+  100% {
+    box-shadow: 0 0 0 14px oklch(90.5% 0.182 98.111 / 0);
+  }
+}
+@keyframes del-shake {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-2deg);
+  }
+  75% {
+    transform: rotate(2deg);
+  }
+}
+@keyframes del-toast-exit {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
 
 .animate-del-in {
   animation: del-in 0.4s cubic-bezier(0.2, 0.9, 0.25, 1.2) backwards;
@@ -222,11 +261,23 @@ textarea {
 .animate-del-pop {
   animation: del-pop 0.3s cubic-bezier(0.2, 0.9, 0.25, 1.2);
 }
+.animate-del-shake {
+  animation: del-shake 0.2s ease-in-out;
+}
+.animate-del-toast-exit {
+  animation: del-toast-exit 0.2s ease-out forwards;
+}
 .animate-del-stamp {
   animation: del-stamp 0.5s cubic-bezier(0.2, 0.9, 0.25, 1.2);
 }
 .animate-del-drop {
   animation: del-drop 0.55s cubic-bezier(0.2, 0.9, 0.25, 1.2) backwards;
+}
+.animate-del-truck {
+  animation: del-truck 0.6s ease-in-out infinite;
+}
+.animate-del-ping {
+  animation: del-ping 1.2s ease-out infinite;
 }
 .animate-del-heart {
   animation: del-heart 0.35s cubic-bezier(0.2, 0.9, 0.25, 1.2);
@@ -246,36 +297,124 @@ textarea {
 
 /* Tactile button classes */
 .btn-tactile {
+  font-weight: 700 !important;
+  text-decoration: none;
+  cursor: pointer;
   transition:
     transform 0.15s ease,
-    box-shadow 0.15s ease,
-    background-color 0.15s ease,
-    color 0.15s ease;
+    box-shadow 0.15s ease !important;
+  transition-duration: 0.15s !important;
 }
 .btn-tactile:hover {
-  box-shadow: 6px 6px 0 var(--line);
-  transform: translate(-2px, -2px);
+  text-decoration: none;
+  box-shadow: 6px 6px 0 var(--line) !important;
+  transform: translate(-2px, -2px) !important;
 }
 .btn-tactile:active {
-  box-shadow: 0px 0px 0 var(--line);
-  transform: translate(3px, 3px);
+  box-shadow: 0px 0px 0 var(--line) !important;
+  transform: translate(3px, 3px) !important;
 }
 
 .btn-auth-submit {
-  box-shadow: 4px 4px 0 oklch(63.7% 0.237 25.331);
+  font-weight: 700 !important;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 4px 4px 0 oklch(63.7% 0.237 25.331) !important;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease !important;
+  transition-duration: 0.15s !important;
+}
+.btn-auth-submit:hover {
+  text-decoration: none;
+  box-shadow: 6px 6px 0 oklch(63.7% 0.237 25.331) !important;
+  transform: translate(-2px, -2px) !important;
+}
+.btn-auth-submit:active {
+  box-shadow: 2px 2px 0 oklch(63.7% 0.237 25.331) !important;
+  transform: translate(3px, 3px) !important;
+}
+
+.btn-checkout-cta {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 16px;
+  font-size: 18px;
+  font-weight: 700 !important;
+  color: var(--paper, oklch(97% 0.001 106.424));
+  text-align: center;
+  text-decoration: none !important;
+  cursor: pointer;
+  background-color: var(--ink, oklch(14.7% 0.004 49.25));
+  border: 3px solid var(--ink, oklch(14.7% 0.004 49.25));
+  box-shadow: 4px 4px 0 oklch(63.7% 0.237 25.331) !important;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease !important;
+  transition-duration: 0.15s !important;
+}
+.btn-checkout-cta:hover {
+  color: var(--paper, oklch(97% 0.001 106.424)) !important;
+  text-decoration: none !important;
+  box-shadow: 6px 6px 0 oklch(63.7% 0.237 25.331) !important;
+  transform: translate(-2px, -2px) !important;
+}
+.btn-checkout-cta:active {
+  box-shadow: 2px 2px 0 oklch(63.7% 0.237 25.331) !important;
+  transform: translate(3px, 3px) !important;
+}
+
+.btn-cart-remove {
+  padding: 4px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink, oklch(14.7% 0.004 49.25));
+  cursor: pointer;
+  background-color: var(--card, #fff);
+  border: 2px solid var(--line, oklch(14.7% 0.004 49.25));
   transition:
     transform 0.15s ease,
     box-shadow 0.15s ease,
     background-color 0.15s ease,
-    color 0.15s ease;
+    color 0.15s ease !important;
+  transition-duration: 0.15s !important;
 }
-.btn-auth-submit:hover {
-  box-shadow: 6px 6px 0 oklch(63.7% 0.237 25.331);
-  transform: translate(-2px, -2px);
+.btn-cart-remove:hover {
+  color: #fff !important;
+  background-color: oklch(63.7% 0.237 25.331) !important;
+  transform: translate(-2px, -2px) !important;
 }
-.btn-auth-submit:active {
-  box-shadow: 2px 2px 0 oklch(63.7% 0.237 25.331);
-  transform: translate(3px, 3px);
+.btn-cart-remove:active {
+  transform: translate(1px, 1px) !important;
+}
+
+.btn-cart-back {
+  display: inline-block;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: 700 !important;
+  color: oklch(14.7% 0.004 49.25);
+  text-decoration: none !important;
+  cursor: pointer;
+  background-color: oklch(90.5% 0.182 98.111);
+  border: 3px solid var(--line, oklch(14.7% 0.004 49.25));
+  box-shadow: 4px 4px 0 var(--line, oklch(14.7% 0.004 49.25)) !important;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease !important;
+  transition-duration: 0.15s !important;
+}
+.btn-cart-back:hover {
+  text-decoration: none !important;
+  box-shadow: 6px 6px 0 var(--line, oklch(14.7% 0.004 49.25)) !important;
+  transform: translate(-2px, -2px) !important;
+}
+.btn-cart-back:active {
+  box-shadow: 2px 2px 0 var(--line, oklch(14.7% 0.004 49.25)) !important;
+  transform: translate(3px, 3px) !important;
 }
 
 @keyframes hero-dots-wave {
@@ -325,4 +464,23 @@ textarea {
     mask-image: none !important;
     animation: none !important;
   }
+}
+
+/* Comic Speech-Bubble Toast Container & Unstyled Overrides */
+[data-sonner-toaster] {
+  right: 20px !important;
+  bottom: 20px !important;
+}
+
+[data-sonner-toast] {
+  overflow: visible !important;
+}
+
+[data-sonner-toast]:has([data-comic-toast]),
+[data-sonner-toast].comic-toast-wrapper {
+  padding: 0 !important;
+  overflow: visible !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }

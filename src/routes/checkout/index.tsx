@@ -1,6 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
 import { ActionButton } from "@/components/store/action-button";
 import { formatAddressLine } from "@/components/store/address-manager";
 import { EmptyState } from "@/components/store/layout";
@@ -8,8 +7,13 @@ import { Input } from "@/components/ui/input";
 import { formatPrice, readingHours } from "@/lib/catalog";
 import { t } from "@/lib/i18n";
 import { useInsertedPanelMotion, useRouteEntrance } from "@/lib/motion";
-import { showRoastToast } from "@/lib/roast-toast";
-import { generateRoastFn } from "@/lib/server/roast";
+import {
+  dispatchCardDeclined,
+  dispatchCheckoutStarted,
+  dispatchPixCopied,
+  dispatchPixExpired,
+  dispatchPurchaseCompleted,
+} from "@/lib/roast-trigger";
 import {
   type Address,
   getCartBooks,
@@ -44,30 +48,6 @@ function detectBrand(num: string) {
   }
   return "CARD";
 }
-
-const CARD_FAIL = [
-  {
-    m: {
-      en: "Card declined. Looks like someone forgot to pay last month’s statement.",
-      pt: "Cartão recusado. Parece que alguém esqueceu de pagar a fatura do mês passado.",
-    },
-    sfx: { en: "DECLINED!", pt: "RECUSADO!" },
-  },
-  {
-    m: {
-      en: "The bank remembered the bill you were going to pay “later”. Just like the books.",
-      pt: "O banco lembrou da fatura que você ia pagar “depois”. Igual aos livros.",
-    },
-    sfx: { en: "OOPS!", pt: "OPS!" },
-  },
-  {
-    m: {
-      en: "Limit maxed out. That statement forgotten in the drawer says hi.",
-      pt: "Limite estourado. Aquela fatura esquecida na gaveta mandou lembranças.",
-    },
-    sfx: { en: "DENIED!", pt: "NEGADO!" },
-  },
-];
 
 function isFinderPattern(r: number, c: number): boolean {
   const fr = (r < 7 && c < 7) || (r < 7 && c > 17) || (r > 17 && c < 7);
@@ -800,42 +780,39 @@ function CheckoutPage() {
         if (prev <= 1) {
           setPixStatus("expired");
           clearInterval(interval);
+          setFormError(
+            locale === "pt"
+              ? "O código Pix expirou. Gere um novo código para continuar."
+              : "Pix code expired. Generate a new code to continue."
+          );
+          dispatchPixExpired(locale, () => {
+            setPixTimeLeft(60);
+            setPixStatus("waiting");
+            setFormError(null);
+          });
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [view, pixStatus]);
+  }, [view, pixStatus, locale]);
 
   useEffect(() => {
-    let active = true;
-    async function triggerRoast() {
-      if (
-        hydrated &&
-        isAuthenticated &&
-        selected.length > 0 &&
-        !checkoutRoastFired.current
-      ) {
-        checkoutRoastFired.current = true;
-        const roast = await generateRoastFn({
-          data: {
-            cartCount: selected.length,
-            event: "checkout_opened",
-            locale,
-            totalPages: totals.pages,
-          },
-        });
-        if (active) {
-          showRoastToast(roast);
-        }
-      }
+    if (
+      hydrated &&
+      isAuthenticated &&
+      selected.length > 0 &&
+      !checkoutRoastFired.current
+    ) {
+      checkoutRoastFired.current = true;
+      dispatchCheckoutStarted({
+        cartBooks: selected,
+        locale,
+        total: totals.subtotal,
+      });
     }
-    triggerRoast();
-    return () => {
-      active = false;
-    };
-  }, [hydrated, isAuthenticated, selected.length, totals.pages, locale]);
+  }, [hydrated, isAuthenticated, selected, totals.subtotal, locale]);
 
   useInsertedPanelMotion(route, [
     hydrated,
@@ -932,7 +909,12 @@ function CheckoutPage() {
   function handleFinalize(methodName: string, addr?: Address) {
     const orderId = completeOrder(methodName, addr);
     if (orderId) {
-      toast.success(text.orderToast);
+      dispatchPurchaseCompleted({
+        locale,
+        ordersCount: useStore.getState().orders.length,
+        pages: totals.pages,
+        total: totals.subtotal,
+      });
       navigate({
         params: { orderId },
         to: "/checkout/complete/$orderId",
@@ -962,8 +944,17 @@ function CheckoutPage() {
     }
 
     if (Math.random() < 0.1) {
-      const fail = CARD_FAIL[Math.floor(Math.random() * CARD_FAIL.length)];
-      toast.error(fail.sfx[locale], { description: fail.m[locale] });
+      setFormError(
+        locale === "pt"
+          ? "Cartão recusado pela operadora. Verifique os dados ou tente outro cartão."
+          : "Card declined by operator. Please check details or try another card."
+      );
+      dispatchCardDeclined({
+        cardBrand,
+        cardLast4: digits.slice(-4),
+        locale,
+        onRetry: () => handleCardSubmit(addr),
+      });
       return;
     }
 
@@ -1009,7 +1000,7 @@ function CheckoutPage() {
       // ignore
     }
     setPixCopied(true);
-    toast.success(text.copied);
+    dispatchPixCopied(locale);
   }
 
   if (!hydrated) {
@@ -1040,16 +1031,16 @@ function CheckoutPage() {
         <div className="border-[3px] border-line bg-card p-6 shadow-[6px_6px_0_var(--line)]">
           <h2 className="font-display text-2xl">{text.account}</h2>
           <p className="mt-2 text-lg">{text.checkoutAuthPrompt}</p>
-          <div className="mt-6 flex flex-wrap gap-4">
+          <div className="mt-6 flex flex-col gap-4">
             <Link
-              className="btn-tactile inline-block border-[3px] border-line bg-yellow px-6 py-3 font-bold text-ink shadow-[4px_4px_0_var(--line)]"
+              className="btn-tactile block w-full border-[3px] border-line bg-yellow px-6 py-3.5 text-center font-bold text-ink shadow-[4px_4px_0_var(--line)]"
               search={{ returnTo: "/checkout" }}
               to="/register"
             >
               {text.checkoutRegisterAction}
             </Link>
             <Link
-              className="btn-auth-submit inline-block border-[3px] border-line bg-ink px-6 py-3 font-bold text-paper"
+              className="btn-auth-submit block w-full border-[3px] border-line bg-ink px-6 py-3.5 text-center font-bold text-paper shadow-[4px_4px_0_oklch(63.7%_0.237_25.331)]"
               search={{ returnTo: "/checkout" }}
               to="/account"
             >

@@ -81,6 +81,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <div ref={host}>
       <Sonner
         className="toaster group"
+        gap={20}
         icons={{
           error: <OctagonXIcon className="size-4" />,
           info: <InfoIcon className="size-4" />,
@@ -88,12 +89,13 @@ const Toaster = ({ ...props }: ToasterProps) => {
           success: <CircleCheckIcon className="size-4" />,
           warning: <TriangleAlertIcon className="size-4" />,
         }}
+        position="bottom-right"
         style={
           {
-            "--border-radius": "var(--radius)",
-            "--normal-bg": "var(--popover)",
-            "--normal-border": "var(--border)",
-            "--normal-text": "var(--popover-foreground)",
+            "--border-radius": "18px",
+            "--normal-bg": "transparent",
+            "--normal-border": "transparent",
+            "--normal-text": "var(--ink)",
           } as React.CSSProperties
         }
         theme={theme as ToasterProps["theme"]}
@@ -102,6 +104,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
             toast: "cn-toast",
           },
         }}
+        visibleToasts={3}
         {...props}
       />
     </div>

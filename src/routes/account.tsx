@@ -203,7 +203,7 @@ function AccountPage() {
               </label>
               <p className="font-data text-xs">{text.localNote}</p>
               <ActionButton
-                className="self-start"
+                className="w-full py-3.5 text-base"
                 shadowTone="red"
                 tone="ink"
                 type="submit"

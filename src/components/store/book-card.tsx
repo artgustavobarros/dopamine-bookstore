@@ -1,12 +1,11 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { type PointerEvent, useRef } from "react";
-import { toast } from "sonner";
 import type { Book } from "@/lib/catalog";
 import { formatNumber, formatPrice, readingHours } from "@/lib/catalog";
 import { t } from "@/lib/i18n";
 import { gsap, POINTER_QUERY, useGSAP, withMotion } from "@/lib/motion";
 import {
-  handleAddBookWithMilestones,
+  dispatchBookAdded,
   handleToggleWishWithMilestones,
 } from "@/lib/roast-trigger";
 import { getCartBooks, getWishlistBooks, useStore } from "@/lib/store";
@@ -35,6 +34,7 @@ export function BookCard({
   const text = t(locale);
   const inCart = cartIds.includes(book.id);
   const wished = wishlistIds.includes(book.id);
+  const navigate = useNavigate();
 
   useGSAP(
     () =>
@@ -155,24 +155,30 @@ export function BookCard({
           <ActionButton
             className="min-w-0 flex-1 px-3 py-2 text-xs sm:text-sm"
             disabled={!hydrated}
-            onClick={async () => {
+            onClick={() => {
+              const state = useStore.getState();
+              const cartBooks = getCartBooks(state.cartIds, state.bookCache);
+              const orders = state.orders;
+
               if (inCart) {
-                toast.info(text.duplicateToast);
-                return;
-              }
-              const cartBooks = getCartBooks(
-                useStore.getState().cartIds,
-                useStore.getState().bookCache
-              );
-              const added = addCart(book);
-              if (added) {
-                toast.info(text.addedToast);
-                await handleAddBookWithMilestones({
+                dispatchBookAdded({
                   book,
                   cartBooks,
                   locale,
-                  onAddedSuccess: () => true,
-                  onDuplicate: () => undefined,
+                  onNavigateToCart: () => navigate({ to: "/cart" }),
+                  orders,
+                });
+                return;
+              }
+
+              const added = addCart(book);
+              if (added) {
+                dispatchBookAdded({
+                  book,
+                  cartBooks: [...cartBooks, book],
+                  locale,
+                  onNavigateToCart: () => navigate({ to: "/cart" }),
+                  orders,
                 });
               }
             }}
@@ -193,15 +199,15 @@ export function BookCard({
             aria-pressed={wished}
             className="w-11 flex-shrink-0 p-0 text-xl leading-none"
             disabled={!hydrated}
-            onClick={async () => {
+            onClick={() => {
               const wishlistBooks = getWishlistBooks(
                 useStore.getState().wishlistIds,
                 useStore.getState().bookCache
               );
               if (toggleWish(book)) {
-                toast.info(text.wishToast);
-                await handleToggleWishWithMilestones({
+                handleToggleWishWithMilestones({
                   book,
+                  inCart,
                   locale,
                   wishlistBooks,
                 });

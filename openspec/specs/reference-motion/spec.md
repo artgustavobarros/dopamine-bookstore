@@ -2,7 +2,6 @@
 
 ## Purpose
 Define the storefront motion and interaction feedback, including accessible behavior and animation cleanup.
-
 ## Requirements
 ### Requirement: Staged storefront entrance
 The application SHALL animate the home hero on entry with a badge stamp, staggered heading, dropping featured covers, and a spinning seal in the order and approximate timing shown by the standalone reference. The content SHALL remain usable throughout the entrance.
@@ -36,19 +35,23 @@ Cards that enter together in the same grid row SHALL reveal with a short stagger
 - **THEN** the card tilts slightly, its shadow responds, and the card returns to its resting position
 
 ### Requirement: Navigation and state feedback
-The application SHALL provide short reference-inspired entrance motion for store routes and inserted panels, and animated feedback for cart count changes, add-to-cart labels, wishlist state, toast appearance, mobile menu opening, and purchase confirmation. Motion SHALL reflect the resulting state and SHALL NOT delay the action.
+The application SHALL provide reference-inspired micro-interactions utilizing the native `@keyframes del-*` CSS animation system (`del-in`, `del-card`, `del-pop`, `del-stamp`, `del-drop`, `del-heart`, `del-bump`, `del-sheet`, `del-fade`, `del-spin`). Interactive buttons SHALL implement tactile hover physics where the button translates by `(-2px, -2px)` and its offset shadow expands from `4px` to `6px`, and active click collapses the translation to `(3px, 3px)` with shadow collapse. Adding a book to the cart SHALL trigger `del-pop` on the button label and `del-bump` on the header cart count badge. Toggling wishlist status SHALL trigger `del-heart` on the heart icon.
 
-#### Scenario: Add book and save wish
-- **WHEN** a visitor adds a book to the cart or changes its wishlist state
-- **THEN** the relevant label or heart responds and the cart count bumps when its value changes
+#### Scenario: Button hover and click micro-interactions
+- **WHEN** a visitor hovers over or activates an interactive button
+- **THEN** the button shifts upwards and its hard shadow expands to 6px, and on press translates down and collapses its shadow
 
-#### Scenario: Navigate and finish checkout
-- **WHEN** a visitor navigates between store routes or completes the simulated checkout
-- **THEN** the new page enters briefly and the confirmation mark receives a stamp effect
+#### Scenario: Cart counter badge bump
+- **WHEN** a book is added to the cart
+- **THEN** the cart count badge runs the `del-bump` scale-up animation
 
-#### Scenario: Open menu and receive toast
-- **WHEN** a visitor opens the mobile menu or receives action feedback
-- **THEN** the menu panel and backdrop or toast animate without blocking dismissal, focus, or screen-reader announcements
+#### Scenario: Wishlist heart scale animation
+- **WHEN** a book is saved to or removed from the wishlist
+- **THEN** the heart icon runs the `del-heart` scale pop animation
+
+#### Scenario: Stamped confirmation feedback
+- **WHEN** a visitor simulates payment or confirms an order
+- **THEN** the status badge enters with the `del-stamp` scaling and rotation animation
 
 ### Requirement: Motion accessibility and lifecycle
 The application SHALL keep content visible before client hydration, stop decorative motion for visitors who request reduced motion, and clean up GSAP animations and ScrollTriggers when owning components change or unmount. Keyboard and touch actions SHALL remain fully usable.
@@ -60,3 +63,4 @@ The application SHALL keep content visible before client hydration, stop decorat
 #### Scenario: Server render and route change
 - **WHEN** the app server-renders a route and later navigates away after hydration
 - **THEN** content is readable before hydration and no animation continues against the unmounted route
+

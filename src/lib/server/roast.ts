@@ -1,21 +1,82 @@
+import { OpenRouter } from "@openrouter/sdk";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { env } from "@/env";
 import {
+  ROASTS,
+  type RoastEvent,
+  selectRoastFromCatalog,
+  type EvaluatedRoast,
+} from "../roasts";
+import {
   getFallbackRoast,
-  type RoastContext,
+  type RoastContext as LegacyRoastContext,
   type RoastPayload,
 } from "../roast-fallbacks";
 
 const JSON_PREFIX_REGEX = /^```json\s*/i;
 const JSON_SUFFIX_REGEX = /```$/i;
+const EMOJI_REGEX = /\p{Extended_Pictographic}/u;
+
+// Cache map for server-side / runtime caching by event + rule
+const serverRoastCache = new Map<string, { sfx: string; msg: string }>();
 
 const roastInputSchema = z.object({
+  author: z.string().optional(),
   authorCount: z.number().optional(),
+  book: z
+    .object({
+      author: z.string(),
+      genre: z.string(),
+      id: z.string(),
+      old: z.boolean().optional(),
+      pages: z.number(),
+      price: z.number().optional(),
+      ru: z.boolean().optional(),
+      title: z.string(),
+    })
+    .optional(),
   bookTitle: z.string().optional(),
+  burstCount: z.number().optional(),
+  cardBrand: z.string().optional(),
+  cardLast4: z.string().optional(),
+  cart: z
+    .array(
+      z.object({
+        author: z.string(),
+        genre: z.string(),
+        id: z.string(),
+        old: z.boolean().optional(),
+        pages: z.number(),
+        price: z.number().optional(),
+        ru: z.boolean().optional(),
+        title: z.string(),
+      })
+    )
+    .optional(),
   cartCount: z.number().optional(),
   categorySwitches: z.number().optional(),
+  deliveryCode: z.string().optional(),
+  deliveryStage: z.string().optional(),
+  eta: z.string().optional(),
   event: z.enum([
+    "book-added",
+    "book-readded",
+    "cart-opened",
+    "checkout-started",
+    "login-required",
+    "login",
+    "wish-added",
+    "review-posted",
+    "pix-copied",
+    "pix-expired",
+    "card-declined",
+    "purchase-completed",
+    "delivery-stage",
+    "delivered",
+    "delivery-receipt-confirmed",
+    "idle",
+    "cart-removed",
     "cart_milestone_count",
     "cart_milestone_pages",
     "checkout_opened",
@@ -35,15 +96,35 @@ const roastInputSchema = z.object({
   filterValue: z.string().nullable().optional(),
   genreFrom: z.string().nullable().optional(),
   genreTo: z.string().nullable().optional(),
+  hours: z.union([z.number(), z.string()]).optional(),
+  inCart: z.boolean().optional(),
+  level: z.enum(["educado", "normal", "impiedoso"]).optional(),
   locale: z.enum(["pt", "en"]).default("pt"),
+  n: z.number().optional(),
+  name: z.string().optional(),
+  orderNumber: z.string().optional(),
+  orders: z.array(z.any()).optional(),
+  owned: z.any().optional(),
+  pages: z.number().optional(),
+  pay: z.string().optional(),
   paymentMethod: z.string().optional(),
   pretendSpend: z.number().optional(),
+  prevPages: z.number().optional(),
+  promo: z.number().optional(),
   query: z.string().optional(),
+  ru: z.number().optional(),
   russianCount: z.number().optional(),
+  savedPages: z.number().optional(),
   searchCount: z.number().optional(),
+  small: z.boolean().optional(),
+  title: z.string().optional(),
+  total: z.number().optional(),
   totalPages: z.number().optional(),
+  wish: z.number().optional(),
   wishlistCount: z.number().optional(),
 });
+
+export type UnifiedRoastInput = z.infer<typeof roastInputSchema>;
 
 function getSystemPrompt(isDiagnosis: boolean, locale: "pt" | "en") {
   const isEn = locale === "en";
@@ -54,7 +135,7 @@ function getSystemPrompt(isDiagnosis: boolean, locale: "pt" | "en") {
         "You are the head roastmaster and cynical psychiatrist at 'Depois Eu Leio' (Dopamine Bookstore). " +
         "Perform a hilarious, dark, stand-up comedy roast evaluation (psychological diagnosis) of the user's book hoarding habits (tsundoku, pretend spending, buying 1,000-page trophies to impress house guests). " +
         "Be sharp, sarcastic, witty, and end with a cynical mock prescription. Exactly 1 dense paragraph (3 to 4 sentences). " +
-        'Respond STRICTLY with valid JSON formatted as: {"tag": "[CLINICAL REPORT]", "roast": "your roast here"}. ' +
+        'Respond STRICTLY with valid JSON formatted as: {"sfx": "CLINICAL REPORT", "msg": "your roast here"}. ' +
         "Do NOT include markdown backticks or any other text."
       );
     }
@@ -62,220 +143,225 @@ function getSystemPrompt(isDiagnosis: boolean, locale: "pt" | "en") {
       "Você é o mestre de cerimônias e psiquiatra cínico da livraria satírica 'Depois Eu Leio'. " +
       "Faça uma 'fritada' (roast de comédia stand-up) hilária e ácida sobre as neuroses de acumulação do usuário (tsundoku, gastar rios de dinheiro fictício, comprar calhamaços de 1.000 páginas só para parecer culto para as visitas). " +
       "Seja afiado, sarcástico, inteligente e finalize com uma prescrição irônica. Exatamente 1 parágrafo denso (3 a 4 frases). " +
-      'Responda ESTRITAMENTE com um JSON válido no formato: {"tag": "[LAUDO CLÍNICO]", "roast": "seu texto ácido aqui"}. ' +
+      'Responda ESTRITAMENTE com um JSON válido no formato: {"sfx": "LAUDO CLÍNICO", "msg": "seu texto ácido aqui"}. ' +
       "NÃO use crases de markdown nem texto fora do JSON."
     );
   }
 
   if (isEn) {
     return (
-      "You are a stand-up comedy roast master at 'Depois Eu Leio' (Dopamine Bookstore). " +
-      "Deliver a quick, punchy, acidic roast joke targeting the user's book hoarding delusions (buying books they will never finish, dopamine rushes from cart clicks, endless wishlist graveyards, perpetual search paralysis, jumping across genres without choosing anything, pretending to be an intellectual). " +
-      "Maximum 2 snappy sentences. " +
-      'Respond STRICTLY with valid JSON in this format: {"tag": "[SOUND EFFECT]", "roast": "your punchline here"}. ' +
-      "The tag MUST be in uppercase inside brackets, like [ALERT!], [IDENTITY CRISIS], [DECORATION ONLY], [LAST CHANCE], [WISHLIST GRAVEYARD], [GENRE TOURIST], [SEARCH PARALYSIS], [BARGAIN HUNTER], [NAME DROPPER], [PAGE ILLUSION]. " +
-      "Do NOT include markdown backticks."
+      "You are the satirical comic roast engine for the bookstore 'Depois Eu Leio' (Dopamine Bookstore).\n" +
+      "YOUR GOAL: Deliver a short, dry, witty, ironic comic toast reaction to the user's shopping actions.\n" +
+      "TONE RULES:\n" +
+      "1. MOCK THE HABIT (buying books and not reading, tsundoku, hoard delusion, dopamine clicks), NEVER the person (no insulting appearance, intelligence, or income).\n" +
+      "2. CITE REAL QUANTITATIVE NUMBERS (exact pages, price, author, quantity) whenever provided.\n" +
+      "3. DRY, AFFIRMATIVE IRONY. No hyperbole, no excessive exclamation marks, no ALL-CAPS in the sentence.\n" +
+      "4. Address the user directly as 'you'.\n" +
+      "5. ABSOLUTELY ZERO EMOJIS.\n" +
+      "6. LENGTH LIMIT: Maximum 140 characters for 'msg'.\n" +
+      "7. ONOMATOPOEIA ('sfx'): 1-2 words in ALL-CAPS ending in '!', '?!', or '.' (max 14 characters, e.g. 'KABOOM!', 'WHOA.', 'ALERT!').\n" +
+      'Respond STRICTLY with JSON: {"sfx": "SFX_HERE", "msg": "concise joke under 140 characters here"}. No markdown formatting.'
     );
   }
 
   return (
-    "Você é o mestre de cerimônias de um show de comédia e fritada (roast) literária na livraria 'Depois Eu Leio'. " +
-    "Faça uma piada ácida, afiada, irônica e hilária de no máximo 2 frases zombando do hábito do usuário de acumular livros que nunca vai ler (tsundoku, vício em dopamina de carrinho, cemitério de listas de desejos, trocar de gênero sem decidir nada, buscas infinitas sem comprar, fingir que lê calhamaço). " +
-    'Responda ESTRITAMENTE com um JSON válido no formato: {"tag": "[EFEITO DE SOM]", "roast": "sua piada ácida aqui"}. ' +
-    "A tag DEVE ser em caixa alta entre colchetes, estilo vinheta de roast (ex: [ALERTA!], [TERAPIA JÁ], [OBJETO DECORATIVO], [HERANÇA NÃO LIDA], [CRISE EXISTENCIAL], [CEMITÉRIO DE DESEJOS], [TURISTA LITERÁRIO], [BUSCA INFINITA], [PECHINCHA INÚTIL], [SÍNDROME DE INTELECTUAL], [ILUSÃO DE PÁGINAS]). " +
-    "NÃO use crases de markdown nem texto fora do JSON."
+    "Você é o motor de manifestações satíricas e toasts de roast da livraria 'Depois Eu Leio'.\n" +
+    "SEU OBJETIVO: Reagir à ação do usuário com uma frase curta, irônica e engraçada baseada em dados reais.\n" +
+    "REGRAS DE TOM:\n" +
+    "1. ZOMBE DO HÁBITO (comprar e nunca ler, tsundoku, vício em dopamina de carrinho, desculpas para adiar), NUNCA da pessoa (nada de inteligência, aparência ou renda).\n" +
+    "2. USE O NÚMERO REAL SEMPRE QUE HOUVER ({pages}, {total}, {author}, {n}). Se a frase servir para outro evento sem mudar nada, está genérica demais.\n" +
+    "3. IRONIA SECA, frase afirmativa, sem excesso de exclamação, sem CAIXA-ALTA na frase.\n" +
+    "4. Fale com 'você'.\n" +
+    "5. ABSOLUTAMENTE ZERO EMOJIS.\n" +
+    "6. LIMITE DE TAMANHO: Máximo de 140 caracteres para a mensagem ('msg').\n" +
+    "7. ONOMATOPEIA ('sfx'): 1 a 2 palavras em CAIXA-ALTA terminando em '!', '?!', '.' ou '…' (máx. 14 caracteres, ex: 'CABRUM!', 'OPA.', 'ALERTA!').\n" +
+    'Responda ESTRITAMENTE com um JSON: {"sfx": "ONOMATOPEIA", "msg": "sua piada com menos de 140 caracteres"}. Sem markdown nem texto extra.'
   );
 }
 
-function getCartMilestoneMessage(data: RoastContext, isEn: boolean): string {
-  if (data.event === "cart_milestone_count") {
+function getFewShotExamples(event: string, locale: "pt" | "en"): string {
+  const isEn = locale === "en";
+  const matchedEventDef = (ROASTS as any)[event];
+  if (!matchedEventDef || !matchedEventDef.rules?.length) {
     return isEn
-      ? `The user just added their ${data.cartCount}th book to the cart. Total pages so far: ${data.totalPages}. Book just added: "${data.bookTitle || "Classic"}".`
-      : `O usuário acabou de colocar o ${data.cartCount}º livro no carrinho. Total de páginas acumuladas: ${data.totalPages}. Livro adicionado agora: "${data.bookTitle || "Clássico"}".`;
+      ? "Examples:\n- sfx: 'WHOA.', msg: '1,024 pages. That’s not a book, it’s an address.'\n- sfx: 'CLICK!', msg: 'Added to cart. Dopamine released; book reading deferred.'\n- sfx: 'SURE.', msg: 'Buying another productivity book will surely fix your life.'"
+      : "Exemplos:\n- sfx: 'CABRUM!', msg: '1.024 páginas. Isso não é um livro, é um endereço.'\n- sfx: 'PLIM!', msg: 'Colocado no carrinho. Dopamina liberada; leitura adiada.'\n- sfx: 'CLARO.', msg: 'Comprar outro livro de produtividade certamente resolverá sua vida.'";
   }
-  return isEn
-    ? `The user's cart just exceeded ${data.totalPages} total pages across ${data.cartCount} books. Russian authors count: ${data.russianCount || 0}.`
-    : `O carrinho do usuário acabou de estourar ${data.totalPages} páginas no total em ${data.cartCount} livros. Autores russos no carrinho: ${data.russianCount || 0}.`;
+
+  const examples: string[] = [];
+  for (const rule of matchedEventDef.rules) {
+    for (const v of rule.variants) {
+      const s = isEn ? v.sfx.en : v.sfx.pt;
+      const m = isEn ? v.msg.en : v.msg.pt;
+      examples.push(`- sfx: "${s}", msg: "${m}"`);
+      if (examples.length >= 3) break;
+    }
+    if (examples.length >= 3) break;
+  }
+
+  return `Examples from catalogue:\n${examples.join("\n")}`;
 }
 
-function getOrderLifecycleMessage(data: RoastContext, isEn: boolean): string {
-  if (data.event === "checkout_opened") {
-    return isEn
-      ? `The user is entering the simulated checkout with ${data.cartCount} books (${data.totalPages} pages). They are about to pretend to spend money.`
-      : `O usuário abriu a tela de checkout simulado com ${data.cartCount} livros (${data.totalPages} páginas). Prestes a simular pagamento de mentira.`;
-  }
-  return isEn
-    ? `The user completed a fictional purchase using ${data.paymentMethod || "fictional card"} for a pretend total of R$ ${data.pretendSpend?.toFixed(2) || "0.00"} and ${data.totalPages} unread pages.`
-    : `O usuário confirmou o pedido fictício via ${data.paymentMethod || "cartão de mentirinha"} somando R$ ${data.pretendSpend?.toFixed(2) || "0.00"} e ${data.totalPages} páginas que ficarão na estante.`;
-}
-
-function getFilterRoastMessage(
-  data: RoastContext,
-  isEn: boolean
-): string | null {
-  if (data.filterType === "price") {
-    return isEn
-      ? `The user just filtered the catalog by price: "${data.filterValue}" on their ${data.searchCount || 3}th search/filter adjustment. Roast their cheapskate rationalization and trying to bargain-hunt books they will never actually read.`
-      : `O usuário acabou de filtrar o catálogo por preço: "${data.filterValue}" na sua ${data.searchCount || 3}ª busca/filtro. Zombe da mania de pechinchar e economizar trocados em livros que nunca vai abrir na vida.`;
-  }
-  if (data.filterType === "author") {
-    return isEn
-      ? `The user just filtered the catalog by author: "${data.filterValue}" on their ${data.searchCount || 3}th search/filter adjustment. Roast their pretentious name-dropping and delusion that buying this specific author will make them an intellectual.`
-      : `O usuário acabou de filtrar o catálogo pelo autor: "${data.filterValue}" na sua ${data.searchCount || 3}ª busca/filtro. Zombe do exibicionismo intelectual e da ilusão de que filtrar esse autor específico vai torná-lo culto.`;
-  }
-  if (data.filterType === "length") {
-    return isEn
-      ? `The user just filtered the catalog by book length/size: "${data.filterValue}" on their ${data.searchCount || 3}th search/filter adjustment. Roast their delusion that choosing books of this page count will actually make them finish a book.`
-      : `O usuário acabou de filtrar o catálogo pelo tamanho/número de páginas: "${data.filterValue}" na sua ${data.searchCount || 3}ª busca/filtro. Zombe da ilusão de achar que escolher livros por tamanho vai fazer com que ele finalmente termine uma leitura.`;
-  }
-  return null;
-}
-
-function getCategoryRoastMessage(data: RoastContext, isEn: boolean): string {
-  const to = data.genreTo || data.filterValue || "another category";
-  const from =
-    data.genreFrom || data.filterPreviousValue || "previous category";
-  const count = data.categorySwitches || data.searchCount || 3;
-  return isEn
-    ? `The user just changed category/genre ${count} times without picking a book. Currently switching to "${to}" from "${from}". Extreme literary indecision and commitment issues.`
-    : `O usuário acabou de trocar de categoria/gênero ${count} vezes sem escolher nenhum livro. Agora mudando para "${to}" saindo de "${from}". Indecisão crônica e turismo literário sem foco.`;
-}
-
-function getBrowsingMilestoneMessage(
-  data: RoastContext,
-  isEn: boolean
-): string {
-  if (data.event === "wishlist_milestone_pages") {
-    return isEn
-      ? `The user's wishlist just exceeded ${data.totalPages} total saved pages across ${data.wishlistCount || data.cartCount || 0} books. They are stockpiling books into their wishlist graveyard to pretend they will buy and read them later.`
-      : `A lista de desejos do usuário acabou de ultrapassar ${data.totalPages} páginas no total em ${data.wishlistCount || data.cartCount || 0} livros salvos. Um cemitério de boas intenções e calhamaços salvos para um 'depois' que nunca chega.`;
-  }
-  if (
-    data.event === "category_switch_milestone" ||
-    data.filterType === "genre"
-  ) {
-    return getCategoryRoastMessage(data, isEn);
-  }
-  const filterMsg = getFilterRoastMessage(data, isEn);
-  if (filterMsg) {
-    return filterMsg;
-  }
-  return isEn
-    ? `The user just ran their ${data.searchCount}th search query ("${data.query || data.filterValue || "unknown"}"). Endless searching, zero reading. Severe search paralysis and procrastination.`
-    : `O usuário acabou de fazer sua ${data.searchCount}ª pesquisa no catálogo ("${data.query || data.filterValue || "desconhecido"}"). Busca infinita, leitura zero. Paralisia de escolha e procrastinação pura.`;
-}
-
-function buildUserMessage(data: RoastContext): string {
+function buildUserPrompt(data: UnifiedRoastInput): string {
   const isEn = data.locale === "en";
+  const event = data.event;
+  const examples = getFewShotExamples(event, data.locale);
 
-  switch (data.event) {
-    case "cart_milestone_count":
-    case "cart_milestone_pages":
-      return getCartMilestoneMessage(data, isEn);
-    case "checkout_opened":
-    case "order_completed":
-      return getOrderLifecycleMessage(data, isEn);
-    case "wishlist_milestone_pages":
-    case "category_switch_milestone":
-    case "search_milestone":
-      return getBrowsingMilestoneMessage(data, isEn);
-    default:
-      return isEn
-        ? `Overall stats: ${data.cartCount || 0} books hoarded, ${data.totalPages || 0} pages accumulated, R$ ${data.pretendSpend?.toFixed(2) || "0.00"} fake spent. Favorite genre: "${data.favoriteGenre || "Literature"}", favorite author: "${data.favoriteAuthor || "Unknown"}".`
-        : `Histórico geral de compras: ${data.cartCount || 0} livros acumulados, ${data.totalPages || 0} páginas, R$ ${data.pretendSpend?.toFixed(2) || "0.00"} não gastos de verdade. Gênero preferido: "${data.favoriteGenre || "Literatura"}", autor favorito: "${data.favoriteAuthor || "Desconhecido"}".`;
+  const contextData = {
+    actionCount: data.searchCount || data.burstCount || 1,
+    author: data.book?.author || data.author || data.favoriteAuthor,
+    bookTitle: data.book?.title || data.bookTitle || data.title,
+    cardBrand: data.cardBrand,
+    cardLast4: data.cardLast4,
+    deliveryStage: data.deliveryStage,
+    event,
+    intensityLevel: data.level || "normal",
+    pages: data.book?.pages || data.pages || data.totalPages,
+    payMethod: data.paymentMethod || data.pay,
+    totalPrice: data.total || data.pretendSpend,
+  };
+
+  return isEn
+    ? `Action Context: ${JSON.stringify(contextData)}\n\n${examples}\n\nGenerate one custom roast in matching tone under 140 chars.`
+    : `Contexto da Ação: ${JSON.stringify(contextData)}\n\n${examples}\n\nCrie uma manifestação curta em tom irônico com menos de 140 caracteres.`;
+}
+
+function resolveFallback(data: UnifiedRoastInput): EvaluatedRoast | RoastPayload {
+  const mappedEvent = data.event as RoastEvent;
+  if ((ROASTS as any)[mappedEvent]) {
+    const catalogRoast = selectRoastFromCatalog(
+      mappedEvent,
+      data as any,
+      data.level || "normal",
+      data.locale || "pt"
+    );
+    if (catalogRoast) {
+      return catalogRoast;
+    }
   }
+
+  // Fallback to legacy structure
+  return getFallbackRoast(data as unknown as LegacyRoastContext);
 }
 
 async function queryOpenRouter(
-  data: RoastContext,
+  data: UnifiedRoastInput,
   isDiagnosis: boolean
-): Promise<RoastPayload> {
+): Promise<EvaluatedRoast | RoastPayload> {
   const apiKey = env.OPENROUTER_API_KEY?.trim();
-  if (!apiKey) {
-    return getFallbackRoast(data);
+  const model = env.OPENROUTER_MODEL;
+  const isEn = data.locale === "en";
+
+  // Check cache first
+  const cacheKey = `${data.event}:${data.bookTitle || data.book?.id || "general"}:${data.locale}`;
+  if (!isDiagnosis && serverRoastCache.has(cacheKey)) {
+    const cached = serverRoastCache.get(cacheKey)!;
+    return {
+      event: data.event as RoastEvent,
+      msg: cached.msg,
+      priority: 2,
+      ruleId: "cached-ai",
+      sfx: cached.sfx,
+      variantIndex: 0,
+    };
   }
 
-  const model = env.OPENROUTER_MODEL;
+  if (!apiKey) {
+    return resolveFallback(data);
+  }
+
   const siteUrl = env.OPENROUTER_SITE_URL;
   const siteName = env.OPENROUTER_SITE_NAME;
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 2500);
-
   try {
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        body: JSON.stringify({
-          max_tokens: isDiagnosis ? 220 : 120,
-          messages: [
-            {
-              content: getSystemPrompt(isDiagnosis, data.locale),
-              role: "system",
-            },
-            {
-              content: buildUserMessage(data),
-              role: "user",
-            },
-          ],
-          model,
-          temperature: 0.85,
-        }),
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": siteUrl,
-          "X-Title": siteName,
-        },
-        method: "POST",
-        signal: controller.signal,
-      }
-    );
+    const client = new OpenRouter({
+      apiKey,
+      appTitle: siteName,
+      httpReferer: siteUrl,
+      timeoutMs: 1500, // Enforced 1.5s timeout as per spec
+    });
 
-    clearTimeout(timeoutId);
+    const result = await client.chat.send({
+      chatRequest: {
+        maxTokens: isDiagnosis ? 200 : 90,
+        messages: [
+          {
+            content: getSystemPrompt(isDiagnosis, data.locale),
+            role: "system",
+          },
+          {
+            content: buildUserPrompt(data),
+            role: "user",
+          },
+        ],
+        model,
+        temperature: 0.8,
+      },
+    });
 
-    if (!response.ok) {
-      return getFallbackRoast(data);
-    }
-
-    const json = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-
-    const rawContent = json.choices?.[0]?.message?.content?.trim() || "";
+    const choice = "choices" in result ? result.choices?.[0] : undefined;
+    const rawContent =
+      typeof choice?.message?.content === "string"
+        ? choice.message.content.trim()
+        : "";
 
     const cleaned = rawContent
       .replace(JSON_PREFIX_REGEX, "")
       .replace(JSON_SUFFIX_REGEX, "")
       .trim();
 
-    const parsed = JSON.parse(cleaned) as { roast?: string; tag?: string };
+    const parsed = JSON.parse(cleaned) as {
+      msg?: string;
+      roast?: string;
+      sfx?: string;
+      tag?: string;
+    };
 
-    if (parsed.roast && parsed.tag) {
+    const sfx = (parsed.sfx || parsed.tag || (isEn ? "WHOA." : "OPA!"))
+      .replace(/^\[|\]$/g, "")
+      .trim()
+      .toUpperCase()
+      .slice(0, 14);
+
+    const msg = (parsed.msg || parsed.roast || "").trim();
+
+    // Validate response:
+    // 1. Must have content
+    // 2. Must be <= 140 chars
+    // 3. Must not contain emojis
+    if (
+      msg &&
+      msg.length <= 140 &&
+      !EMOJI_REGEX.test(msg) &&
+      !EMOJI_REGEX.test(sfx)
+    ) {
+      // Store in cache
+      if (!isDiagnosis) {
+        serverRoastCache.set(cacheKey, { msg, sfx });
+      }
+
       return {
-        roast: parsed.roast.trim(),
-        tag: parsed.tag.trim().toUpperCase(),
+        event: data.event as RoastEvent,
+        msg,
+        priority: 2,
+        ruleId: "openrouter-ai",
+        sfx,
+        variantIndex: 0,
       };
     }
 
-    if (parsed.roast) {
-      return {
-        roast: parsed.roast.trim(),
-        tag: isDiagnosis ? "[LAUDO CLÍNICO]" : "[ALERTA!]",
-      };
-    }
-
-    return getFallbackRoast(data);
+    // Validation failed: fall back to catalog
+    return resolveFallback(data);
   } catch {
-    clearTimeout(timeoutId);
-    return getFallbackRoast(data);
+    // Timeout, network error, or rate limit: immediate deterministic fallback
+    return resolveFallback(data);
   }
 }
 
 export const generateRoastFn = createServerFn({ method: "POST" })
-  .validator((data: RoastContext) => roastInputSchema.parse(data))
+  .validator((data: UnifiedRoastInput) => roastInputSchema.parse(data))
   .handler(async ({ data }) => queryOpenRouter(data, false));
 
 export const generateDiagnosisFn = createServerFn({ method: "POST" })
-  .validator((data: RoastContext) => roastInputSchema.parse(data))
+  .validator((data: UnifiedRoastInput) => roastInputSchema.parse(data))
   .handler(async ({ data }) => queryOpenRouter(data, true));

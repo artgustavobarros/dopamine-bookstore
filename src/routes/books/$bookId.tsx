@@ -1,10 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Heart, Star } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 import { ActionButton } from "@/components/store/action-button";
 import { BookCover } from "@/components/store/book-cover";
@@ -28,8 +27,9 @@ import {
 } from "@/lib/motion";
 import { bookQuery } from "@/lib/open-library";
 import {
-  handleAddBookWithMilestones,
+  dispatchBookAdded,
   handleToggleWishWithMilestones,
+  dispatchReviewPosted,
 } from "@/lib/roast-trigger";
 import {
   getCartBooks,
@@ -90,6 +90,7 @@ function BookDetail() {
   const lastCart = useRef<boolean | null>(null);
   const lastWish = useRef<boolean | null>(null);
   const { bookId } = Route.useParams();
+  const navigate = useNavigate();
   const locale = useStore((state) => state.locale);
   const profile = useStore((state) => state.profile);
   const users = useStore((state) => state.users);
@@ -244,24 +245,30 @@ function BookDetail() {
           <div className="flex flex-wrap gap-4">
             <ActionButton
               disabled={!hydrated}
-              onClick={async () => {
+              onClick={() => {
+                const state = useStore.getState();
+                const cartBooks = getCartBooks(state.cartIds, state.bookCache);
+                const orders = state.orders;
+
                 if (inCart) {
-                  toast.info(text.duplicateToast);
-                  return;
-                }
-                const cartBooks = getCartBooks(
-                  useStore.getState().cartIds,
-                  useStore.getState().bookCache
-                );
-                const added = addCart(book);
-                if (added) {
-                  toast.info(text.addedToast);
-                  await handleAddBookWithMilestones({
+                  dispatchBookAdded({
                     book,
                     cartBooks,
                     locale,
-                    onAddedSuccess: () => true,
-                    onDuplicate: () => undefined,
+                    onNavigateToCart: () => navigate({ to: "/cart" }),
+                    orders,
+                  });
+                  return;
+                }
+
+                const added = addCart(book);
+                if (added) {
+                  dispatchBookAdded({
+                    book,
+                    cartBooks: [...cartBooks, book],
+                    locale,
+                    onNavigateToCart: () => navigate({ to: "/cart" }),
+                    orders,
                   });
                 }
               }}
@@ -273,15 +280,15 @@ function BookDetail() {
             <ActionButton
               aria-pressed={wished}
               disabled={!hydrated}
-              onClick={async () => {
+              onClick={() => {
                 const wishlistBooks = getWishlistBooks(
                   useStore.getState().wishlistIds,
                   useStore.getState().bookCache
                 );
                 if (toggleWish(book)) {
-                  toast.info(text.wishToast);
-                  await handleToggleWishWithMilestones({
+                  handleToggleWishWithMilestones({
                     book,
+                    inCart,
                     locale,
                     wishlistBooks,
                   });
@@ -378,7 +385,10 @@ function BookReviewSection({
           onSubmit={form.handleSubmit(({ stars, text: reviewText }) => {
             addReview(book.id, stars, reviewText);
             form.reset();
-            toast.success(text.reviewToast);
+            const owned = useStore
+              .getState()
+              .orders.some((o) => o.items?.some((i) => i.id === book.id));
+            dispatchReviewPosted({ owned, locale });
           })}
         >
           <div className="flex flex-wrap items-center justify-between gap-4">

@@ -4,23 +4,23 @@
 Browser-local demo identity, visitor authentication, checkout access control, and visitor reviews.
 ## Requirements
 ### Requirement: Browser-local demo identity
-The application SHALL let visitors log into a local demo account using email and password, without requesting a name on the login screen. It SHALL label the identity as local and fictional, persist registered user records and the active authenticated session in `localStorage`, and allow sign-out. The application MUST ensure that any active demo profile session in storage is backed by a corresponding record in `users`; any unverified or orphan session SHALL be purged upon storage merge/initialization. Upon sign-out, the active session is cleared while preserving user registration records, orders, and wishlist entries.
+The application SHALL let visitors manage a local demo account session and persistent profile. The user profile in `localStorage` SHALL support a collection of saved delivery addresses (with custom labels, address details, and a designated preferred address) and saved payment cards (with detected card brand, last 4 digits, and expiration date). Auth submission buttons SHALL be rendered with dark backgrounds and vivid red offset shadows (`box-shadow: 4px 4px 0 oklch(63.7% 0.237 25.331)`) that expand on hover. Upon sign-out, the active session is cleared while preserving user registration records, saved addresses, orders, and wishlist entries.
 
-#### Scenario: Enter valid identity on login
-- **WHEN** a visitor logs in on `/account` with an email matching a registered account and valid password credentials
-- **THEN** the account view and navigation display the registered user's name, the authenticated state is saved to `localStorage`, and the profile survives page reloads
+#### Scenario: Manage multiple saved addresses in profile
+- **WHEN** an authenticated visitor adds a new address with a custom nickname and CEP on the account page
+- **THEN** the address is saved to their profile, can be set as preferred, and becomes immediately available in checkout
 
-#### Scenario: Invalid login credentials or format
-- **WHEN** a visitor submits an unregistered email, incorrect password, or invalid email format on `/account`
-- **THEN** field-level validation appears with motion alert feedback and the session is not saved
+#### Scenario: Manage saved payment methods in profile
+- **WHEN** an authenticated visitor saves a card or sets a preferred payment method
+- **THEN** the card appears in their saved payment methods list and pre-selects that payment method in checkout
+
+#### Scenario: Auth submit button styling
+- **WHEN** an unauthenticated visitor views the login or registration form
+- **THEN** the submit button displays an ink background with a bold red offset shadow expanding from 4px to 6px on hover
 
 #### Scenario: Sign out
 - **WHEN** an authenticated visitor signs out
 - **THEN** the active demo profile session is cleared from `localStorage` without deleting existing local orders, wishlist entries, or registered account profiles
-
-#### Scenario: Evict orphan profile sessions on load
-- **WHEN** storage is hydrated or merged containing an active profile whose email does not match any registered user record in `users`
-- **THEN** the active profile is set to `null` so unverified visitors are not treated as authenticated
 
 ### Requirement: Visitor reviews
 The application SHALL let visitors with a demo profile submit a 1-to-5-star review with nonblank text for a book. Reviews SHALL be stored in local storage and displayed with the corresponding book. Submitting a review SHALL strictly require an active authenticated user whose email exists in the local `users` registry.
@@ -69,3 +69,4 @@ The application SHALL strictly require an authenticated user with an existing re
 #### Scenario: Direct navigation from checkout to registration
 - **WHEN** an unauthenticated visitor on `/checkout` clicks the call-to-action to create an account
 - **THEN** the visitor is navigated to `/register?returnTo=/checkout` to register their user credentials
+

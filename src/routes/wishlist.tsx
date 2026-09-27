@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ActionButton } from "@/components/store/action-button";
 import { BookCard } from "@/components/store/book-card";
 import { EmptyState } from "@/components/store/layout";
@@ -16,16 +16,23 @@ function WishlistPage() {
   const bookCache = useStore((state) => state.bookCache);
   const hydrated = useStore((state) => state.hydrated);
   const moveAll = useStore((state) => state.moveWishesToCart);
+  const navigate = useNavigate();
   const text = t(locale);
   const selected = ids
     .map((id) => bookCache[id])
     .filter((book): book is Book => Boolean(book));
+
+  function handleMoveAll() {
+    moveAll();
+    navigate({ to: "/cart" });
+  }
+
   return (
     <div className="mx-auto max-w-7xl px-5 pt-12 sm:px-6" ref={route}>
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4 border-line border-b-[3px] pb-3">
         <h1 className="font-display text-4xl sm:text-5xl">{text.wishTitle}</h1>
         {selected.length > 0 && (
-          <ActionButton onClick={moveAll}>{text.moveAll}</ActionButton>
+          <ActionButton onClick={handleMoveAll}>{text.moveAll}</ActionButton>
         )}
       </div>
       {hydrated ? (

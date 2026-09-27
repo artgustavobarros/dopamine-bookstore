@@ -33,7 +33,7 @@ export function BookCover({
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(oklch(14.7%_0.004_49.25/0.22)_1.2px,transparent_1.6px)] bg-[size:8px_8px]"
       />
 
-      {/* Cover content */}
+      {/* Cover content (graphic typography fallback) */}
       <div
         className={cn(
           "relative flex h-full flex-col justify-between",
@@ -53,13 +53,27 @@ export function BookCover({
           <span className="w-fit max-w-[70%] truncate bg-ink px-2 py-1 font-semibold text-paper text-xs">
             {book.author[locale]}
           </span>
-          {hasOld && (
-            <span className="rotate-6 border-2 border-line bg-yellow px-2 py-0.5 font-accent text-base text-ink tracking-wide shadow-[2px_2px_0_var(--line)]">
-              {isEn ? "SALE!" : "PROMO!"}
-            </span>
-          )}
         </div>
       </div>
+
+      {/* Real cover image from OpenLibrary if coverId exists */}
+      {book.coverId ? (
+        <img
+          alt={book.title[locale]}
+          className="absolute inset-0 h-full w-full object-cover"
+          height={large ? 480 : 300}
+          loading="lazy"
+          src={`https://covers.openlibrary.org/b/id/${book.coverId}-${large ? "L" : "M"}.jpg`}
+          width={large ? 320 : 200}
+        />
+      ) : null}
+
+      {/* SALE / PROMO badge always on top */}
+      {hasOld && (
+        <span className="absolute right-3 bottom-3 z-10 rotate-6 border-2 border-line bg-yellow px-2 py-0.5 font-accent text-base text-ink tracking-wide shadow-[2px_2px_0_var(--line)]">
+          {isEn ? "SALE!" : "PROMO!"}
+        </span>
+      )}
     </div>
   );
 }

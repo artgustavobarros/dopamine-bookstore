@@ -19,6 +19,7 @@ import { Route as WishlistRouteImport } from './routes/wishlist'
 import { Route as BooksBookIdRouteImport } from './routes/books/$bookId'
 import { Route as CheckoutIndexRouteImport } from './routes/checkout/index'
 import { Route as CheckoutCompleteOrderIdRouteImport } from './routes/checkout/complete/$orderId'
+import { Route as OrdersOrderIdTrackingRouteImport } from './routes/orders_.$orderId.tracking'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -70,6 +71,11 @@ const CheckoutCompleteOrderIdRoute = CheckoutCompleteOrderIdRouteImport.update({
   path: '/checkout/complete/$orderId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrdersOrderIdTrackingRoute = OrdersOrderIdTrackingRouteImport.update({
+  id: '/orders_/$orderId/tracking',
+  path: '/orders/$orderId/tracking',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/books/$bookId': typeof BooksBookIdRoute
   '/checkout/': typeof CheckoutIndexRoute
   '/checkout/complete/$orderId': typeof CheckoutCompleteOrderIdRoute
+  '/orders/$orderId/tracking': typeof OrdersOrderIdTrackingRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/books/$bookId': typeof BooksBookIdRoute
   '/checkout': typeof CheckoutIndexRoute
   '/checkout/complete/$orderId': typeof CheckoutCompleteOrderIdRoute
+  '/orders/$orderId/tracking': typeof OrdersOrderIdTrackingRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   '/books/$bookId': typeof BooksBookIdRoute
   '/checkout/': typeof CheckoutIndexRoute
   '/checkout/complete/$orderId': typeof CheckoutCompleteOrderIdRoute
+  '/orders_/$orderId/tracking': typeof OrdersOrderIdTrackingRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
     | '/books/$bookId'
     | '/checkout/'
     | '/checkout/complete/$orderId'
+    | '/orders/$orderId/tracking'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
     | '/books/$bookId'
     | '/checkout'
     | '/checkout/complete/$orderId'
+    | '/orders/$orderId/tracking'
   id:
     | '__root__'
     | '/'
@@ -145,6 +156,7 @@ export interface FileRouteTypes {
     | '/books/$bookId'
     | '/checkout/'
     | '/checkout/complete/$orderId'
+    | '/orders_/$orderId/tracking'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -158,6 +170,7 @@ export interface RootRouteChildren {
   BooksBookIdRoute: typeof BooksBookIdRoute
   CheckoutIndexRoute: typeof CheckoutIndexRoute
   CheckoutCompleteOrderIdRoute: typeof CheckoutCompleteOrderIdRoute
+  OrdersOrderIdTrackingRoute: typeof OrdersOrderIdTrackingRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -232,6 +245,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckoutCompleteOrderIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/orders_/$orderId/tracking': {
+      id: '/orders_/$orderId/tracking'
+      path: '/orders/$orderId/tracking'
+      fullPath: '/orders/$orderId/tracking'
+      preLoaderRoute: typeof OrdersOrderIdTrackingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -246,6 +266,7 @@ const rootRouteChildren: RootRouteChildren = {
   BooksBookIdRoute: BooksBookIdRoute,
   CheckoutIndexRoute: CheckoutIndexRoute,
   CheckoutCompleteOrderIdRoute: CheckoutCompleteOrderIdRoute,
+  OrdersOrderIdTrackingRoute: OrdersOrderIdTrackingRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -69,10 +69,13 @@ const itemSchema = z.object({
 
 const orderSchema = z.object({
   address: addressSchema.optional(),
+  confirmedReceiptAt: z.string().optional(),
   createdAt: z.string(),
   id: z.string(),
   items: z.array(itemSchema),
   method: z.string(),
+  receiptConfirmed: z.boolean().default(false),
+  skew: z.number().default(0),
   totalPages: z.number().nonnegative(),
   totalPrice: z.number().nonnegative(),
 });
@@ -122,6 +125,8 @@ type AppState = z.infer<typeof savedSchema> & {
   setPreferredPayment: (prefPay: string) => void;
   addReview: (bookId: string, stars: number, text: string) => void;
   completeOrder: (method: string, address?: Address) => string | null;
+  confirmOrderReceipt: (orderId: string) => void;
+  skipOrderStage: (orderId: string, addSkewSeconds: number) => void;
   setLocale: (locale: Locale) => void;
   setTheme: (theme: Theme) => void;
   refreshBooks: (books: Book[]) => void;
@@ -308,6 +313,8 @@ export const useStore = create<AppState>()(
           id: crypto.randomUUID(),
           items,
           method,
+          receiptConfirmed: false,
+          skew: 0,
           totalPages: items.reduce((sum, book) => sum + book.pages, 0),
           totalPrice: items.reduce((sum, book) => sum + book.price, 0),
         };
@@ -529,6 +536,29 @@ export const useStore = create<AppState>()(
           return { success: true };
         }
         return { error: "not_found", success: false };
+      },
+      confirmOrderReceipt(orderId) {
+        const nowIso = new Date().toISOString();
+        set((state) => ({
+          orders: state.orders.map((o) =>
+            o.id === orderId
+              ? {
+                  ...o,
+                  confirmedReceiptAt: nowIso,
+                  receiptConfirmed: true,
+                }
+              : o
+          ),
+        }));
+      },
+      skipOrderStage(orderId, addSkewSeconds) {
+        set((state) => ({
+          orders: state.orders.map((o) =>
+            o.id === orderId
+              ? { ...o, skew: (o.skew ?? 0) + addSkewSeconds }
+              : o
+          ),
+        }));
       },
       toggleWish(book) {
         if (!bookSchema.safeParse(book).success) {

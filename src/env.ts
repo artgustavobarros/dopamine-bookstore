@@ -1,6 +1,12 @@
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
 
+try {
+  process.loadEnvFile?.();
+} catch {
+  // .env may not exist in some environments
+}
+
 export const env = createEnv({
   client: {},
   clientPrefix: "VITE_",

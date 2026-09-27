@@ -2,7 +2,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 import { ActionButton } from "@/components/store/action-button";
 import { HeroFeaturedStage } from "@/components/store/hero-featured-stage";
@@ -16,6 +15,7 @@ import {
   withMotion,
 } from "@/lib/motion";
 import { catalogQuery } from "@/lib/open-library";
+import { dispatchLogin } from "@/lib/roast-trigger";
 import { useStore } from "@/lib/store";
 
 const registerFormSchema = z
@@ -134,7 +134,10 @@ function RegisterPage() {
       return;
     }
 
-    toast.success(text.registerSuccess);
+    dispatchLogin({
+      locale,
+      name: values.name.trim().split(" ")[0] || "Leitor",
+    });
     continueToDestination();
   }
 
@@ -266,7 +269,7 @@ function RegisterPage() {
               <p className="font-data text-xs">{text.localNote}</p>
 
               <ActionButton
-                className="self-start"
+                className="w-full py-3.5 text-base"
                 shadowTone="red"
                 tone="ink"
                 type="submit"
