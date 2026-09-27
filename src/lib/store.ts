@@ -9,7 +9,47 @@ import { type Book, bookSchema, type Locale } from "./catalog";
 
 const bookIdPattern = /^OL\d+W$/;
 
-const profileSchema = z.object({ email: z.email(), name: z.string().min(1) });
+export const addressSchema = z.object({
+  cep: z.string(),
+  city: z.string(),
+  comp: z.string().optional(),
+  id: z.string(),
+  label: z.string(),
+  number: z.string(),
+  street: z.string(),
+  uf: z.string(),
+});
+export type Address = z.infer<typeof addressSchema>;
+
+export const savedCardSchema = z.object({
+  brand: z.string(),
+  exp: z.string(),
+  id: z.string(),
+  last4: z.string(),
+  name: z.string(),
+});
+export type SavedCard = z.infer<typeof savedCardSchema>;
+
+const profileSchema = z.object({
+  addresses: z.array(addressSchema).default([]),
+  cards: z.array(savedCardSchema).default([]),
+  email: z.string().email(),
+  name: z.string().min(1),
+  prefAddr: z.string().nullable().default(null),
+  prefPay: z.string().default("pix"),
+});
+
+const registeredUserSchema = z.object({
+  addresses: z.array(addressSchema).default([]),
+  cards: z.array(savedCardSchema).default([]),
+  createdAt: z.string(),
+  email: z.string().email(),
+  name: z.string().min(1),
+  password: z.string().optional(),
+  prefAddr: z.string().nullable().default(null),
+  prefPay: z.string().default("pix"),
+});
+
 const reviewSchema = z.object({
   createdAt: z.string(),
   id: z.string(),
@@ -17,6 +57,7 @@ const reviewSchema = z.object({
   stars: z.number().int().min(1).max(5),
   text: z.string(),
 });
+
 const itemSchema = z.object({
   author: z.object({ en: z.string(), pt: z.string() }),
   genre: z.string(),
@@ -25,15 +66,17 @@ const itemSchema = z.object({
   price: z.number().nonnegative(),
   title: z.object({ en: z.string(), pt: z.string() }),
 });
-const methodSchema = z.enum(["pix", "card", "none"]);
+
 const orderSchema = z.object({
+  address: addressSchema.optional(),
   createdAt: z.string(),
   id: z.string(),
   items: z.array(itemSchema),
-  method: methodSchema,
+  method: z.string(),
   totalPages: z.number().nonnegative(),
   totalPrice: z.number().nonnegative(),
 });
+
 const savedSchema = z.object({
   bookCache: z.record(z.string(), bookSchema),
   cartIds: z.array(z.string()),
@@ -42,13 +85,14 @@ const savedSchema = z.object({
   profile: profileSchema.nullable(),
   reviews: z.record(z.string(), z.array(reviewSchema)),
   theme: z.enum(["light", "dark"]),
+  users: z.record(z.string(), registeredUserSchema).default({}),
   wishlistIds: z.array(z.string()),
 });
 
 export type Profile = z.infer<typeof profileSchema>;
+export type RegisteredUser = z.infer<typeof registeredUserSchema>;
 export type Review = z.infer<typeof reviewSchema>;
 export type Order = z.infer<typeof orderSchema>;
-export type PaymentMethod = z.infer<typeof methodSchema>;
 export type Theme = "light" | "dark";
 
 type AppState = z.infer<typeof savedSchema> & {
@@ -58,8 +102,26 @@ type AppState = z.infer<typeof savedSchema> & {
   toggleWish: (book: Book) => boolean;
   moveWishesToCart: () => void;
   setProfile: (profile: Profile | null) => void;
+  registerUser: (data: { name: string; email: string; password?: string }) => {
+    success: boolean;
+    error?: "email_taken" | "invalid_data";
+  };
+  signInUser: (data: { email: string; password?: string }) => {
+    success: boolean;
+    error?: "not_found" | "invalid_password";
+  };
+  updateProfile: (data: { name: string; email: string; password?: string }) => {
+    success: boolean;
+    error?: string;
+  };
+  addAddress: (address: Omit<Address, "id">) => Address | null;
+  removeAddress: (id: string) => void;
+  setPreferredAddress: (id: string) => void;
+  addCard: (card: Omit<SavedCard, "id">) => SavedCard | null;
+  removeCard: (id: string) => void;
+  setPreferredPayment: (prefPay: string) => void;
   addReview: (bookId: string, stars: number, text: string) => void;
-  completeOrder: (method: PaymentMethod) => string | null;
+  completeOrder: (method: string, address?: Address) => string | null;
   setLocale: (locale: Locale) => void;
   setTheme: (theme: Theme) => void;
   refreshBooks: (books: Book[]) => void;
@@ -99,6 +161,7 @@ const initial = {
   profile: null as Profile | null,
   reviews: {} as Record<string, Review[]>,
   theme: "light" as Theme,
+  users: {} as Record<string, RegisteredUser>,
   wishlistIds: [] as string[],
 };
 
@@ -106,6 +169,79 @@ export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
       ...initial,
+      addAddress(data) {
+        const { profile, users } = get();
+        if (!profile) {
+          return null;
+        }
+        const email = profile.email.toLowerCase();
+        const user = users[email];
+        if (!user) {
+          return null;
+        }
+
+        const newAddress: Address = {
+          ...data,
+          id: crypto.randomUUID(),
+        };
+
+        const nextAddresses = [...(user.addresses || []), newAddress];
+        const nextPref = user.prefAddr || newAddress.id;
+
+        const updatedUser: RegisteredUser = {
+          ...user,
+          addresses: nextAddresses,
+          prefAddr: nextPref,
+        };
+
+        const updatedProfile: Profile = {
+          ...profile,
+          addresses: nextAddresses,
+          prefAddr: nextPref,
+        };
+
+        set((state) => ({
+          profile: updatedProfile,
+          users: { ...state.users, [email]: updatedUser },
+        }));
+
+        return newAddress;
+      },
+      addCard(data) {
+        const { profile, users } = get();
+        if (!profile) {
+          return null;
+        }
+        const email = profile.email.toLowerCase();
+        const user = users[email];
+        if (!user) {
+          return null;
+        }
+
+        const newCard: SavedCard = {
+          ...data,
+          id: crypto.randomUUID(),
+        };
+
+        const nextCards = [...(user.cards || []), newCard];
+
+        const updatedUser: RegisteredUser = {
+          ...user,
+          cards: nextCards,
+        };
+
+        const updatedProfile: Profile = {
+          ...profile,
+          cards: nextCards,
+        };
+
+        set((state) => ({
+          profile: updatedProfile,
+          users: { ...state.users, [email]: updatedUser },
+        }));
+
+        return newCard;
+      },
       addCart(book) {
         if (
           !bookSchema.safeParse(book).success ||
@@ -120,8 +256,14 @@ export const useStore = create<AppState>()(
         return true;
       },
       addReview(bookId, stars, text) {
-        const { profile } = get();
-        if (!(profile && bookIdPattern.test(bookId))) {
+        const { profile, users } = get();
+        if (
+          !(
+            profile &&
+            users[profile.email.toLowerCase()] &&
+            bookIdPattern.test(bookId)
+          )
+        ) {
           return;
         }
         const review: Review = {
@@ -138,9 +280,12 @@ export const useStore = create<AppState>()(
           },
         }));
       },
-      completeOrder(method) {
-        const { cartIds, profile } = get();
-        if (!profile || cartIds.length === 0) {
+      completeOrder(method, address) {
+        const { cartIds, profile, users } = get();
+        if (
+          !(profile && users[profile.email.toLowerCase()]) ||
+          cartIds.length === 0
+        ) {
           return null;
         }
         const items = cartIds
@@ -158,6 +303,7 @@ export const useStore = create<AppState>()(
           return null;
         }
         const order: Order = {
+          address,
           createdAt: new Date().toISOString(),
           id: crypto.randomUUID(),
           items,
@@ -190,6 +336,104 @@ export const useStore = create<AppState>()(
           return changed ? { bookCache: next } : state;
         });
       },
+      registerUser(data) {
+        const email = data.email.trim().toLowerCase();
+        const name = data.name.trim();
+        if (!(email && name)) {
+          return { error: "invalid_data", success: false };
+        }
+        const { users } = get();
+        if (users[email]) {
+          return { error: "email_taken", success: false };
+        }
+        const user: RegisteredUser = {
+          addresses: [],
+          cards: [],
+          createdAt: new Date().toISOString(),
+          email,
+          name,
+          password: data.password?.trim() || undefined,
+          prefAddr: null,
+          prefPay: "pix",
+        };
+        const profile: Profile = {
+          addresses: [],
+          cards: [],
+          email,
+          name,
+          prefAddr: null,
+          prefPay: "pix",
+        };
+        set((state) => ({
+          profile,
+          users: { ...state.users, [email]: user },
+        }));
+        return { success: true };
+      },
+      removeAddress(id) {
+        const { profile, users } = get();
+        if (!profile) {
+          return;
+        }
+        const email = profile.email.toLowerCase();
+        const user = users[email];
+        if (!user) {
+          return;
+        }
+
+        const nextAddresses = (user.addresses || []).filter((a) => a.id !== id);
+        const nextPref =
+          user.prefAddr === id ? nextAddresses[0]?.id || null : user.prefAddr;
+
+        const updatedUser: RegisteredUser = {
+          ...user,
+          addresses: nextAddresses,
+          prefAddr: nextPref,
+        };
+
+        const updatedProfile: Profile = {
+          ...profile,
+          addresses: nextAddresses,
+          prefAddr: nextPref,
+        };
+
+        set((state) => ({
+          profile: updatedProfile,
+          users: { ...state.users, [email]: updatedUser },
+        }));
+      },
+      removeCard(id) {
+        const { profile, users } = get();
+        if (!profile) {
+          return;
+        }
+        const email = profile.email.toLowerCase();
+        const user = users[email];
+        if (!user) {
+          return;
+        }
+
+        const nextCards = (user.cards || []).filter((c) => c.id !== id);
+        const nextPrefPay =
+          user.prefPay === `saved:${id}` ? "pix" : user.prefPay;
+
+        const updatedUser: RegisteredUser = {
+          ...user,
+          cards: nextCards,
+          prefPay: nextPrefPay,
+        };
+
+        const updatedProfile: Profile = {
+          ...profile,
+          cards: nextCards,
+          prefPay: nextPrefPay,
+        };
+
+        set((state) => ({
+          profile: updatedProfile,
+          users: { ...state.users, [email]: updatedUser },
+        }));
+      },
       removeCart(id) {
         set((state) => ({
           cartIds: state.cartIds.filter((entry) => entry !== id),
@@ -198,11 +442,93 @@ export const useStore = create<AppState>()(
       setLocale(locale) {
         set({ locale });
       },
+      setPreferredAddress(id) {
+        const { profile, users } = get();
+        if (!profile) {
+          return;
+        }
+        const email = profile.email.toLowerCase();
+        const user = users[email];
+        if (!user) {
+          return;
+        }
+
+        const updatedUser: RegisteredUser = { ...user, prefAddr: id };
+        const updatedProfile: Profile = { ...profile, prefAddr: id };
+
+        set((state) => ({
+          profile: updatedProfile,
+          users: { ...state.users, [email]: updatedUser },
+        }));
+      },
+      setPreferredPayment(prefPay) {
+        const { profile, users } = get();
+        if (!profile) {
+          return;
+        }
+        const email = profile.email.toLowerCase();
+        const user = users[email];
+        if (!user) {
+          return;
+        }
+
+        const updatedUser: RegisteredUser = { ...user, prefPay };
+        const updatedProfile: Profile = { ...profile, prefPay };
+
+        set((state) => ({
+          profile: updatedProfile,
+          users: { ...state.users, [email]: updatedUser },
+        }));
+      },
       setProfile(profile) {
-        set({ profile });
+        if (profile) {
+          const email = profile.email.trim().toLowerCase();
+          const { users } = get();
+          const existing = users[email];
+          if (!existing) {
+            return;
+          }
+          set({
+            profile: {
+              addresses: existing.addresses || [],
+              cards: existing.cards || [],
+              email: existing.email,
+              name: existing.name,
+              prefAddr: existing.prefAddr || null,
+              prefPay: existing.prefPay || "pix",
+            },
+          });
+        } else {
+          set({ profile: null });
+        }
       },
       setTheme(theme) {
         set({ theme });
+      },
+      signInUser(data) {
+        const email = data.email.trim().toLowerCase();
+        const { users } = get();
+        const existing = users[email];
+        if (existing) {
+          if (
+            existing.password &&
+            (!data.password || existing.password !== data.password.trim())
+          ) {
+            return { error: "invalid_password", success: false };
+          }
+          set({
+            profile: {
+              addresses: existing.addresses || [],
+              cards: existing.cards || [],
+              email: existing.email,
+              name: existing.name,
+              prefAddr: existing.prefAddr || null,
+              prefPay: existing.prefPay || "pix",
+            },
+          });
+          return { success: true };
+        }
+        return { error: "not_found", success: false };
       },
       toggleWish(book) {
         if (!bookSchema.safeParse(book).success) {
@@ -217,6 +543,56 @@ export const useStore = create<AppState>()(
         }));
         return adding;
       },
+      updateProfile(data) {
+        const { profile, users } = get();
+        if (!profile) {
+          return { error: "not_authenticated", success: false };
+        }
+        const oldEmail = profile.email.toLowerCase();
+        const newEmail = data.email.trim().toLowerCase();
+        const newName = data.name.trim();
+
+        if (!(newName && newEmail)) {
+          return { error: "invalid_data", success: false };
+        }
+
+        const existingUser = users[oldEmail];
+        if (!existingUser) {
+          return { error: "not_found", success: false };
+        }
+
+        if (newEmail !== oldEmail && users[newEmail]) {
+          return { error: "email_taken", success: false };
+        }
+
+        const updatedUser: RegisteredUser = {
+          ...existingUser,
+          email: newEmail,
+          name: newName,
+          password: data.password
+            ? data.password.trim()
+            : existingUser.password,
+        };
+
+        const updatedProfile: Profile = {
+          ...profile,
+          email: newEmail,
+          name: newName,
+        };
+
+        const nextUsers = { ...users };
+        if (newEmail !== oldEmail) {
+          delete nextUsers[oldEmail];
+        }
+        nextUsers[newEmail] = updatedUser;
+
+        set(() => ({
+          profile: updatedProfile,
+          users: nextUsers,
+        }));
+
+        return { success: true };
+      },
     }),
     {
       merge: (persisted, current) => {
@@ -224,6 +600,11 @@ export const useStore = create<AppState>()(
         if (!parsed.success) {
           return current;
         }
+        const users = parsed.data.users ?? {};
+        const profile =
+          parsed.data.profile && users[parsed.data.profile.email.toLowerCase()]
+            ? parsed.data.profile
+            : null;
         return {
           ...current,
           ...parsed.data,
@@ -232,11 +613,13 @@ export const useStore = create<AppState>()(
               parsed.data.cartIds.filter((id) => parsed.data.bookCache[id])
             ),
           ],
+          profile,
           reviews: Object.fromEntries(
             Object.entries(parsed.data.reviews).filter(([id]) =>
               bookIdPattern.test(id)
             )
           ),
+          users,
           wishlistIds: [
             ...new Set(
               parsed.data.wishlistIds.filter((id) => parsed.data.bookCache[id])
@@ -251,7 +634,13 @@ export const useStore = create<AppState>()(
         if (!legacy.success) {
           return initial;
         }
-        return { ...legacy.data, bookCache: {}, cartIds: [], wishlistIds: [] };
+        return {
+          ...legacy.data,
+          bookCache: {},
+          cartIds: [],
+          users: {},
+          wishlistIds: [],
+        };
       },
       name: "depois-eu-leio-v1",
       partialize: (state) => ({
@@ -262,6 +651,7 @@ export const useStore = create<AppState>()(
         profile: state.profile,
         reviews: state.reviews,
         theme: state.theme,
+        users: state.users,
         wishlistIds: state.wishlistIds,
       }),
       skipHydration: true,

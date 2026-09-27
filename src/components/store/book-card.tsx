@@ -1,14 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { Heart } from "lucide-react";
 import { type PointerEvent, useRef } from "react";
 import { toast } from "sonner";
 import type { Book } from "@/lib/catalog";
-import {
-  formatNumber,
-  formatPrice,
-  genreLabels,
-  readingHours,
-} from "@/lib/catalog";
+import { formatNumber, formatPrice, readingHours } from "@/lib/catalog";
 import { t } from "@/lib/i18n";
 import { gsap, POINTER_QUERY, useGSAP, withMotion } from "@/lib/motion";
 import {
@@ -27,10 +21,6 @@ export function BookCard({
   revealIndex?: number;
 }) {
   const card = useRef<HTMLElement>(null);
-  const addLabel = useRef<HTMLSpanElement>(null);
-  const wishIcon = useRef<HTMLSpanElement>(null);
-  const lastCart = useRef<boolean | null>(null);
-  const lastWish = useRef<boolean | null>(null);
   const pointerMotion = useRef<{
     rotation: (value: number) => void;
     x: (value: number) => void;
@@ -105,58 +95,6 @@ export function BookCard({
     { scope: card }
   );
 
-  useGSAP(
-    () => {
-      if (!hydrated) {
-        return;
-      }
-      const previousCart = lastCart.current;
-      const previousWish = lastWish.current;
-      lastCart.current = inCart;
-      lastWish.current = wished;
-      return withMotion(() => {
-        if (
-          previousCart !== null &&
-          previousCart !== inCart &&
-          addLabel.current
-        ) {
-          gsap.fromTo(
-            addLabel.current,
-            { rotation: -4, scale: 0.6 },
-            {
-              clearProps: "transform",
-              duration: 0.3,
-              ease: "back.out(1.8)",
-              rotation: 0,
-              scale: 1,
-            }
-          );
-        }
-        if (
-          previousWish !== null &&
-          previousWish !== wished &&
-          wishIcon.current
-        ) {
-          gsap.fromTo(
-            wishIcon.current,
-            { scale: 0.4 },
-            {
-              clearProps: "transform",
-              duration: 0.35,
-              ease: "back.out(2)",
-              scale: 1,
-            }
-          );
-        }
-      });
-    },
-    {
-      dependencies: [hydrated, inCart, wished],
-      revertOnUpdate: true,
-      scope: card,
-    }
-  );
-
   function onPointerMove(event: PointerEvent<HTMLElement>) {
     if (card.current?.dataset.revealed !== "true") {
       return;
@@ -177,7 +115,7 @@ export function BookCard({
 
   return (
     <article
-      className="flex h-full flex-col border-[3px] border-line bg-surface shadow-[6px_6px_0_var(--line)] transition-shadow hover:shadow-[8px_8px_0_#e44f4b]"
+      className="flex h-full flex-col border-[3px] border-line bg-card shadow-[6px_6px_0_var(--line)] transition-[box-shadow,transform] duration-150 ease-out hover:shadow-[8px_8px_0_oklch(63.7%_0.237_25.331)]"
       data-book-id={book.id}
       onPointerLeave={onPointerLeave}
       onPointerMove={onPointerMove}
@@ -185,30 +123,15 @@ export function BookCard({
     >
       <Link
         aria-label={book.title[locale]}
-        className="block p-4 pb-2"
+        className="block w-full cursor-pointer transition-opacity hover:opacity-95"
         params={{ bookId: book.id }}
         to="/books/$bookId"
       >
         <BookCover book={book} locale={locale} />
       </Link>
-      <div className="flex flex-1 flex-col gap-3 px-4 pt-3 pb-5">
-        <div className="flex flex-wrap items-start justify-between gap-2 font-bold text-xs uppercase tracking-wide">
-          <span>{genreLabels[book.genre][locale]}</span>
-          {book.oldPrice !== undefined && (
-            <span className="bg-red px-2 py-0.5 text-[#141210]">
-              {text.sale}
-            </span>
-          )}
-        </div>
-        <Link
-          className="font-display text-xl leading-tight hover:underline"
-          params={{ bookId: book.id }}
-          to="/books/$bookId"
-        >
-          {book.title[locale]}
-        </Link>
-        <p className="font-medium text-sm">{book.author[locale]}</p>
-        <div className="mt-auto flex justify-between gap-2 border-line border-t-2 pt-3 font-data text-xs">
+
+      <div className="flex flex-1 flex-col gap-3 p-3.5 sm:p-4">
+        <div className="flex justify-between font-data text-ink/80 text-xs">
           <span>
             {book.pages === null
               ? text.pagesUnknown
@@ -216,25 +139,21 @@ export function BookCard({
           </span>
           {book.pages !== null && <span>~{readingHours(book.pages)}h</span>}
         </div>
-        <div className="flex items-baseline gap-2">
-          <strong className="font-display text-xl">
+
+        <div className="mt-auto flex items-baseline gap-2">
+          <strong className="font-display text-ink text-xl">
             {formatPrice(book.price, locale)}
           </strong>
           {book.oldPrice !== undefined && (
-            <del className="text-sm opacity-70">
+            <del className="text-ink/60 text-sm">
               {formatPrice(book.oldPrice, locale)}
             </del>
           )}
         </div>
-        <span className="font-data text-[10px] uppercase">
-          {text.demoPrice}
-        </span>
-        {book.sourceLocale !== locale && (
-          <p className="text-xs">{text.savedLanguageNotice}</p>
-        )}
+
         <div className="flex gap-2">
           <ActionButton
-            className="min-w-0 flex-1 px-2 text-xs sm:text-sm"
+            className="min-w-0 flex-1 px-3 py-2 text-xs sm:text-sm"
             disabled={!hydrated}
             onClick={async () => {
               if (inCart) {
@@ -257,15 +176,22 @@ export function BookCard({
                 });
               }
             }}
+            tone={inCart ? "green" : "yellow"}
           >
-            <span className="inline-block" ref={addLabel}>
+            <span
+              className={
+                inCart ? "inline-block animate-del-pop" : "inline-block"
+              }
+              key={inCart ? "in" : "add"}
+            >
               {inCart ? text.inCart : text.addCart}
             </span>
           </ActionButton>
+
           <ActionButton
             aria-label={wished ? text.removeWish : text.saveWish}
             aria-pressed={wished}
-            className="w-11 p-0"
+            className="w-11 flex-shrink-0 p-0 text-xl leading-none"
             disabled={!hydrated}
             onClick={async () => {
               const wishlistBooks = getWishlistBooks(
@@ -281,10 +207,15 @@ export function BookCard({
                 });
               }
             }}
-            tone={wished ? "yellow" : "surface"}
+            tone={wished ? "red" : "surface"}
           >
-            <span className="inline-flex" ref={wishIcon}>
-              <Heart className={wished ? "fill-[#141210]" : ""} />
+            <span
+              className={
+                wished ? "inline-block animate-del-heart" : "inline-block"
+              }
+              key={wished ? "yes" : "no"}
+            >
+              {wished ? "♥" : "♡"}
             </span>
           </ActionButton>
         </div>

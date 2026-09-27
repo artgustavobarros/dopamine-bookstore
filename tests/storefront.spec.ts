@@ -130,15 +130,23 @@ test("catalog to fictional order, review, and insights survives reload", async (
   await expect(page.locator("main")).toContainText("Dom Casmurro");
 
   await page.getByRole("link", { name: "Ir para o checkout" }).click();
-  await page.getByRole("link", { name: "Entrar e continuar" }).click();
-  await page.getByLabel("Nome").fill("Ana Demo");
-  await page.getByLabel("E-mail").fill("ana@example.com");
-  await page.getByRole("button", { name: "Entrar e continuar" }).click();
+  await page.getByRole("link", { name: "Cadastre-se para finalizar" }).click();
+  await page.locator("#register-name").fill("Ana Demo");
+  await page.locator("#register-email").fill("ana@example.com");
+  await page.locator("#register-password").fill("senha123");
+  await page.locator("#register-confirm-password").fill("senha123");
+  await page.getByRole("button", { name: "Criar conta e continuar" }).click();
   await expect(page).toHaveURL(checkoutUrl);
   await page.getByText("Pix de mentirinha").click();
   await page
     .getByRole("button", { name: "Concluir decisão questionável" })
     .click();
+  const simBtn = page.getByRole("button", {
+    name: "Simular leitura no celular",
+  });
+  if (await simBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await simBtn.click();
+  }
   await expect(page).toHaveURL(completeUrl);
   await expect(
     page.getByRole("heading", { name: "Pedido imaginário confirmado." })
@@ -363,13 +371,19 @@ test("hero renders 3 featured books with black styling and covers, and SEO/AEO m
   expect(jsonText).toContain("Dopamine Bookstore");
 });
 
-test("triggers roast toasts on wishlist pages milestone, category switches, and repeated searches", async ({
+test("triggers roast toasts on wishlist pages milestone, category switches, repeated searches, and filter parameter changes", async ({
   page,
 }) => {
   await page.goto("/");
   await expect(page.locator('[data-hydrated="true"]')).toBeVisible();
+  await expect(page.locator("#catalog article")).toHaveCount(3);
 
-  // 1. Category switches (>3 switches triggers [TURISTA LITERÁRIO])
+  // Verify inert genre button is removed from search bar
+  await expect(page.locator("#catalog .mb-5").getByText("Gênero")).toHaveCount(
+    0
+  );
+
+  // 1. Category switches (at 3 switches triggers [TURISTA LITERÁRIO])
   const sciFiBtn = page.getByRole("button", {
     exact: true,
     name: "Ficção científica",
@@ -384,33 +398,42 @@ test("triggers roast toasts on wishlist pages milestone, category switches, and 
   });
   const allBtn = page.getByRole("button", { exact: true, name: "Todos" });
 
-  await sciFiBtn.click(); // switch 1
-  await habitsBtn.click(); // switch 2
-  await classicsBtn.click(); // switch 3
-  await allBtn.click(); // switch 4 (>3 switches)
+  await sciFiBtn.click(); // action 1
+  await habitsBtn.click(); // action 2
+  await classicsBtn.click(); // action 3 (cadence 3: triggers [TURISTA LITERÁRIO])
 
   await expect(page.getByText("[TURISTA LITERÁRIO]")).toBeVisible({
     timeout: 10_000,
   });
 
-  // 2. Repeated searches (>3 searches triggers [BUSCA INFINITA])
+  // 2. Exploration cadence continued: action 4, 5, 6 with text queries
+  await allBtn.click(); // action 4
   const searchInput = page.getByLabel("Buscar título ou autor");
   await searchInput.fill("duna");
-  await searchInput.press("Enter");
+  await searchInput.press("Enter"); // action 5
   await searchInput.fill("machado");
-  await searchInput.press("Enter");
-  await searchInput.fill("clarice");
-  await searchInput.press("Enter");
-  await searchInput.fill("tolstoi");
-  await searchInput.press("Enter");
+  await searchInput.press("Enter"); // action 6 (cadence 6: triggers [BUSCA INFINITA])
 
   await expect(page.getByText("[BUSCA INFINITA]")).toBeVisible({
     timeout: 10_000,
   });
 
-  // 3. Wishlist pages milestone: add books until wishlist pages exceed 1,000 pages
+  // 3. Filter parameter change: actions 7, 8, 9 with price and length
+  const priceSelect = page.getByLabel("Preço");
+  const lengthSelect = page.getByLabel("Tamanho");
+  await priceSelect.selectOption("under50"); // action 7
+  await lengthSelect.selectOption("short"); // action 8
+  await priceSelect.selectOption("under100"); // action 9 (cadence 9: triggers [PECHINCHA INÚTIL])
+
+  await expect(page.getByText("[PECHINCHA INÚTIL]")).toBeVisible({
+    timeout: 10_000,
+  });
+
+  // 4. Wishlist pages milestone: add books until wishlist pages exceed 1,000 pages
   await searchInput.fill("");
   await searchInput.press("Enter");
+  await priceSelect.selectOption("all");
+  await lengthSelect.selectOption("all");
   await expect(page.locator("#catalog article")).toHaveCount(3);
   await page.locator("#catalog article").first().scrollIntoViewIfNeeded();
 
@@ -431,4 +454,137 @@ test("triggers roast toasts on wishlist pages milestone, category switches, and 
   await expect(page.getByText(wishlistRoastPattern).first()).toBeVisible({
     timeout: 10_000,
   });
+});
+
+test("hero displays wave dot loading state and book skeletons while fetching", async ({
+  page,
+}) => {
+  let fulfillSearch!: () => void;
+  const searchGate = new Promise<void>((resolve) => {
+    fulfillSearch = resolve;
+  });
+
+  await page.route("**/search.json?**", async (route) => {
+    await searchGate;
+    const query = new URL(route.request().url()).searchParams.get("q") ?? "";
+    const english = query.includes("language:eng");
+    const portuguese = query.includes("language:por");
+    const workId = query.match(workQueryPattern)?.[1];
+    let docs = workId
+      ? works.filter((work) => work.key.endsWith(workId))
+      : works;
+    if (english) {
+      docs = docs
+        .filter((work) => work.key !== "/works/OL100W")
+        .map((work) => ({
+          ...work,
+          editions: {
+            docs: [
+              {
+                key: work.editions.docs[0].key,
+                language: ["eng"],
+                title: work.title,
+              },
+            ],
+          },
+        }));
+    } else if (!(portuguese || workId)) {
+      docs = [];
+    }
+    await route.fulfill({
+      body: JSON.stringify({ docs }),
+      contentType: "application/json",
+    });
+  });
+
+  await page.goto("/");
+  await expect(page.locator("[data-hero-loading='true']")).toBeVisible();
+  await expect(page.locator(".hero-dots-wave")).toBeVisible();
+  await expect(page.locator("[data-hero-book]")).toHaveCount(0);
+  await expect(page.locator("[data-hero-seal]")).toHaveCount(0);
+  await expect(page.locator("[data-hero-status]")).toHaveCount(0);
+
+  fulfillSearch();
+
+  await expect(page.locator("[data-hero-book]")).toHaveCount(3);
+  await expect(page.locator("[data-hero-seal]")).toBeVisible();
+  await expect(page.locator("[data-hero-status]")).toContainText(
+    "Em destaque:"
+  );
+});
+
+test("buttons and role=button elements have pointer cursor when enabled and not-allowed when disabled", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const button = page.locator("button:not(:disabled)").first();
+  await expect(button).toBeVisible();
+  await expect(button).toHaveCSS("cursor", "pointer");
+
+  const cursorStyles = await page.evaluate(() => {
+    const btn = document.querySelector("button:not(:disabled)");
+    const customRoleBtn = document.createElement("div");
+    customRoleBtn.setAttribute("role", "button");
+    document.body.appendChild(customRoleBtn);
+
+    const disabledBtn = document.createElement("button");
+    disabledBtn.disabled = true;
+    document.body.appendChild(disabledBtn);
+
+    const disabledRoleBtn = document.createElement("div");
+    disabledRoleBtn.setAttribute("role", "button");
+    disabledRoleBtn.setAttribute("aria-disabled", "true");
+    document.body.appendChild(disabledRoleBtn);
+
+    const result = {
+      buttonCursor: btn ? window.getComputedStyle(btn).cursor : null,
+      disabledButtonCursor: window.getComputedStyle(disabledBtn).cursor,
+      disabledRoleBtnCursor: window.getComputedStyle(disabledRoleBtn).cursor,
+      roleButtonCursor: window.getComputedStyle(customRoleBtn).cursor,
+    };
+
+    customRoleBtn.remove();
+    disabledBtn.remove();
+    disabledRoleBtn.remove();
+
+    return result;
+  });
+
+  expect(cursorStyles.buttonCursor).toBe("pointer");
+  expect(cursorStyles.roleButtonCursor).toBe("pointer");
+  expect(cursorStyles.disabledButtonCursor).toBe("not-allowed");
+  expect(cursorStyles.disabledRoleBtnCursor).toBe("not-allowed");
+});
+
+test("footer stays anchored at viewport bottom on short routes and scrolls on tall routes", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 900, width: 1200 });
+  await page.goto("/cart");
+  await expect(page.locator('[data-hydrated="true"]')).toBeVisible();
+
+  const cartFooterPosition = await page.evaluate(() => {
+    const footer = document.querySelector("footer");
+    if (!footer) {
+      return null;
+    }
+    const rect = footer.getBoundingClientRect();
+    return {
+      bottom: Math.round(rect.bottom),
+      viewportHeight: window.innerHeight,
+    };
+  });
+  expect(cartFooterPosition?.bottom).toBe(900);
+
+  await page.goto("/");
+  await expect(page.locator("#catalog article")).toHaveCount(3);
+  const homeFooterPosition = await page.evaluate(() => {
+    const footer = document.querySelector("footer");
+    if (!footer) {
+      return null;
+    }
+    const rect = footer.getBoundingClientRect();
+    return rect.top >= window.innerHeight;
+  });
+  expect(homeFooterPosition).toBe(true);
 });

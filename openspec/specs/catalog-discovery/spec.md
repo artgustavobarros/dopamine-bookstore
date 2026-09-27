@@ -4,7 +4,11 @@
 TBD - created by archiving change build-dopamine-bookstore. Update Purpose after archive.
 ## Requirements
 ### Requirement: Search and filter books
-The application SHALL search Open Library in the selected language by title or author text and filter the returned books by genre, price band, author, and page-length band. It SHALL show the result count and a useful empty state.
+The application SHALL search Open Library in the selected language by title or author text and filter the returned books by genre, price band, author, and page-length band. The catalog search input SHALL NOT display an inert, non-functional genre button adjacent to the input field, relying instead on the interactive genre selectors in the catalog filter section. It SHALL show the result count and a useful empty state.
+
+#### Scenario: Clean search input without inert genre badge
+- **WHEN** a visitor views the catalog search bar
+- **THEN** the search input field is rendered without an adjacent non-functional "Gênero" decorative badge
 
 #### Scenario: Combined filters
 - **WHEN** a visitor enters a search term and selects a genre

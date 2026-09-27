@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as CartRouteImport } from './routes/cart'
 import { Route as OrdersRouteImport } from './routes/orders'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as StatsRouteImport } from './routes/stats'
 import { Route as WishlistRouteImport } from './routes/wishlist'
 import { Route as BooksBookIdRouteImport } from './routes/books/$bookId'
@@ -37,6 +38,11 @@ const CartRoute = CartRouteImport.update({
 const OrdersRoute = OrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StatsRoute = StatsRouteImport.update({
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/account': typeof AccountRoute
   '/cart': typeof CartRoute
   '/orders': typeof OrdersRoute
+  '/register': typeof RegisterRoute
   '/stats': typeof StatsRoute
   '/wishlist': typeof WishlistRoute
   '/books/$bookId': typeof BooksBookIdRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/account': typeof AccountRoute
   '/cart': typeof CartRoute
   '/orders': typeof OrdersRoute
+  '/register': typeof RegisterRoute
   '/stats': typeof StatsRoute
   '/wishlist': typeof WishlistRoute
   '/books/$bookId': typeof BooksBookIdRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/account': typeof AccountRoute
   '/cart': typeof CartRoute
   '/orders': typeof OrdersRoute
+  '/register': typeof RegisterRoute
   '/stats': typeof StatsRoute
   '/wishlist': typeof WishlistRoute
   '/books/$bookId': typeof BooksBookIdRoute
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/cart'
     | '/orders'
+    | '/register'
     | '/stats'
     | '/wishlist'
     | '/books/$bookId'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/cart'
     | '/orders'
+    | '/register'
     | '/stats'
     | '/wishlist'
     | '/books/$bookId'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/cart'
     | '/orders'
+    | '/register'
     | '/stats'
     | '/wishlist'
     | '/books/$bookId'
@@ -140,6 +152,7 @@ export interface RootRouteChildren {
   AccountRoute: typeof AccountRoute
   CartRoute: typeof CartRoute
   OrdersRoute: typeof OrdersRoute
+  RegisterRoute: typeof RegisterRoute
   StatsRoute: typeof StatsRoute
   WishlistRoute: typeof WishlistRoute
   BooksBookIdRoute: typeof BooksBookIdRoute
@@ -175,6 +188,13 @@ declare module '@tanstack/react-router' {
       path: '/orders'
       fullPath: '/orders'
       preLoaderRoute: typeof OrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/stats': {
@@ -220,6 +240,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountRoute: AccountRoute,
   CartRoute: CartRoute,
   OrdersRoute: OrdersRoute,
+  RegisterRoute: RegisterRoute,
   StatsRoute: StatsRoute,
   WishlistRoute: WishlistRoute,
   BooksBookIdRoute: BooksBookIdRoute,

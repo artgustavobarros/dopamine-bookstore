@@ -6,44 +6,60 @@ export function BookCover({
   book,
   locale,
   large = false,
+  className,
 }: {
   book: Book;
   locale: Locale;
   large?: boolean;
+  className?: string;
 }) {
+  const hasOld = book.oldPrice !== undefined;
+  const isEn = locale === "en";
+
   return (
     <div
       className={cn(
-        "relative aspect-[3/4] overflow-hidden border-[3px] border-line text-[#141210] shadow-[6px_6px_0_var(--line)]",
-        genreColors[book.genre]
+        "relative aspect-[3/4] w-full overflow-hidden text-ink",
+        large
+          ? "border-[3px] border-line shadow-[8px_8px_0_var(--line)]"
+          : "border-line border-b-[3px]",
+        genreColors[book.genre] || "bg-yellow",
+        className
       )}
     >
+      {/* Halftone radial pattern overlay */}
       <div
         aria-hidden="true"
-        className="absolute inset-0 bg-[length:10px_10px] bg-[radial-gradient(#14121033_1.4px,transparent_1.5px)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(oklch(14.7%_0.004_49.25/0.22)_1.2px,transparent_1.6px)] bg-[size:8px_8px]"
       />
-      <div className="relative flex h-full flex-col justify-between gap-5 p-5 sm:p-6">
+
+      {/* Cover content */}
+      <div
+        className={cn(
+          "relative flex h-full flex-col justify-between",
+          large ? "p-6" : "p-3.5"
+        )}
+      >
         <div
           className={cn(
-            "border-[#141210] border-[3px] bg-white p-3 font-display leading-[1.04] tracking-tight shadow-[4px_4px_0_#141210]",
-            large ? "text-3xl sm:text-4xl" : "text-xl sm:text-2xl"
+            "border-2 border-line bg-card font-display text-ink leading-tight shadow-[4px_4px_0_var(--line)]",
+            large ? "p-4 text-2xl sm:text-3xl" : "p-2.5 text-base sm:text-lg"
           )}
         >
           {book.title[locale]}
         </div>
-        <span className="w-fit max-w-full bg-[#141210] px-2 py-1 font-semibold text-sm text-white">
-          {book.author[locale]}
-        </span>
+
+        <div className="flex items-end justify-between gap-2">
+          <span className="w-fit max-w-[70%] truncate bg-ink px-2 py-1 font-semibold text-paper text-xs">
+            {book.author[locale]}
+          </span>
+          {hasOld && (
+            <span className="rotate-6 border-2 border-line bg-yellow px-2 py-0.5 font-accent text-base text-ink tracking-wide shadow-[2px_2px_0_var(--line)]">
+              {isEn ? "SALE!" : "PROMO!"}
+            </span>
+          )}
+        </div>
       </div>
-      {book.coverId === null ? null : (
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 bg-center bg-cover"
-          style={{
-            backgroundImage: `url(https://covers.openlibrary.org/b/id/${book.coverId}-${large ? "L" : "M"}.jpg?default=false)`,
-          }}
-        />
-      )}
     </div>
   );
 }

@@ -1,8 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { ActionButton } from "@/components/store/action-button";
+import { AddressManager } from "@/components/store/address-manager";
+import { HeroFeaturedStage } from "@/components/store/hero-featured-stage";
 import { Input } from "@/components/ui/input";
 import { t } from "@/lib/i18n";
 import {
@@ -12,13 +15,14 @@ import {
   useRouteEntrance,
   withMotion,
 } from "@/lib/motion";
+import { catalogQuery } from "@/lib/open-library";
 import { useStore } from "@/lib/store";
 
-const profileFormSchema = z.object({
-  email: z.email(),
-  name: z.string().trim().min(1),
+const loginFormSchema = z.object({
+  email: z.string().email(),
+  password: z.string().optional(),
 });
-type ProfileFields = z.infer<typeof profileFormSchema>;
+type LoginFields = z.infer<typeof loginFormSchema>;
 
 export const Route = createFileRoute("/account")({
   component: AccountPage,
@@ -33,15 +37,27 @@ function AccountPage() {
   const profile = useStore((state) => state.profile);
   const hydrated = useStore((state) => state.hydrated);
   const setProfile = useStore((state) => state.setProfile);
+  const signInUser = useStore((state) => state.signInUser);
   const text = t(locale);
   const { returnTo } = Route.useSearch();
   const navigate = useNavigate();
-  const form = useForm<ProfileFields>({
-    defaultValues: { email: "", name: "" },
-    resolver: zodResolver(profileFormSchema),
+  const form = useForm<LoginFields>({
+    defaultValues: { email: "", password: "" },
+    resolver: zodResolver(loginFormSchema),
   });
-  const nameInvalid = Boolean(form.formState.errors.name);
   const emailInvalid = Boolean(form.formState.errors.email);
+  const passwordInvalid = Boolean(form.formState.errors.password);
+
+  const query = useQuery({
+    ...catalogQuery(locale, ""),
+    enabled: hydrated,
+  });
+  const bookCache = useStore((state) => state.bookCache);
+  const books = query.data ?? Object.values(bookCache);
+  const featured = books.slice(0, 3);
+  const isHeroLoading =
+    (!hydrated || query.isLoading || query.isPending) && featured.length === 0;
+
   useInsertedPanelMotion(route, [hydrated, Boolean(profile)]);
   useGSAP(
     () =>
@@ -62,7 +78,7 @@ function AccountPage() {
         }
       }),
     {
-      dependencies: [nameInvalid, emailInvalid],
+      dependencies: [emailInvalid, passwordInvalid],
       revertOnUpdate: true,
       scope: route,
     }
@@ -79,91 +95,142 @@ function AccountPage() {
     }
   }
 
+  function onSubmit(values: LoginFields) {
+    const result = signInUser({
+      email: values.email,
+      password: values.password,
+    });
+
+    if (!result.success) {
+      if (result.error === "invalid_password") {
+        form.setError("password", {
+          message: text.invalidPassword,
+          type: "manual",
+        });
+        return;
+      }
+      if (result.error === "not_found") {
+        form.setError("email", {
+          message: text.userNotFound,
+          type: "manual",
+        });
+        return;
+      }
+    }
+
+    continueToDestination();
+  }
+
   return (
-    <div className="mx-auto max-w-5xl px-5 pt-12 sm:px-6" ref={route}>
+    <div className="mx-auto max-w-7xl px-5 pt-12 sm:px-6" ref={route}>
       <h1 className="mb-6 border-line border-b-[3px] pb-3 font-display text-4xl sm:text-5xl">
         {text.accountTitle}
       </h1>
       <p className="mb-8 max-w-[55ch] text-lg">{text.accountLead}</p>
       {hydrated ? (
-        profile ? (
-          <div
-            className="max-w-xl border-[3px] border-line bg-green p-6 text-[#141210] shadow-[6px_6px_0_var(--line)]"
-            data-motion-panel
-          >
-            <p className="font-data text-xs uppercase">{text.signedAs}</p>
-            <p className="mt-3 font-display text-3xl">{profile.name}</p>
-            <p className="mt-1">{profile.email}</p>
-            <p className="mt-5 font-semibold text-sm">{text.localNote}</p>
-            <div className="mt-7 flex flex-wrap gap-4">
-              {Boolean(returnTo) && (
-                <ActionButton onClick={continueToDestination}>
-                  {text.signIn}
-                </ActionButton>
-              )}
-              <ActionButton onClick={() => setProfile(null)} tone="surface">
-                {text.signOut}
-              </ActionButton>
+        <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:items-start">
+          {profile ? (
+            <div className="flex flex-col gap-6" data-motion-panel>
+              <div className="w-full border-[3px] border-line bg-card p-6 text-ink shadow-[6px_6px_0_var(--line)]">
+                <p className="font-data text-xs uppercase">{text.signedAs}</p>
+                <p className="mt-3 font-display text-3xl">{profile.name}</p>
+                <p className="mt-1 font-medium text-ink/80">{profile.email}</p>
+                <p className="mt-4 font-semibold text-sm">{text.localNote}</p>
+                <div className="mt-6 flex flex-wrap gap-4">
+                  {Boolean(returnTo) && (
+                    <ActionButton onClick={continueToDestination} tone="yellow">
+                      {returnTo === "/checkout" ? text.checkout : text.signIn}
+                    </ActionButton>
+                  )}
+                  <ActionButton onClick={() => setProfile(null)} tone="surface">
+                    {text.signOut}
+                  </ActionButton>
+                </div>
+              </div>
+
+              <AddressManager />
             </div>
+          ) : (
+            <form
+              className="flex w-full flex-col gap-5 border-[3px] border-line bg-surface p-6 shadow-[6px_6px_0_var(--line)]"
+              data-motion-panel
+              onSubmit={form.handleSubmit(onSubmit)}
+            >
+              <label
+                className="flex flex-col gap-2 font-semibold"
+                htmlFor="profile-email"
+              >
+                <span>{text.email}</span>
+                <Input
+                  autoComplete="email"
+                  id="profile-email"
+                  type="email"
+                  {...form.register("email")}
+                  className="h-12 rounded-none border-2 border-line bg-paper px-3"
+                />
+                {Boolean(form.formState.errors.email) && (
+                  <span
+                    className="text-[#a91f22] text-sm dark:text-[#ff8680]"
+                    data-motion-alert
+                    role="alert"
+                  >
+                    {form.formState.errors.email?.message || text.emailError}
+                  </span>
+                )}
+              </label>
+              <label
+                className="flex flex-col gap-2 font-semibold"
+                htmlFor="profile-password"
+              >
+                <span>{text.password}</span>
+                <Input
+                  autoComplete="current-password"
+                  id="profile-password"
+                  type="password"
+                  {...form.register("password")}
+                  className="h-12 rounded-none border-2 border-line bg-paper px-3"
+                />
+                {Boolean(form.formState.errors.password) && (
+                  <span
+                    className="text-[#a91f22] text-sm dark:text-[#ff8680]"
+                    data-motion-alert
+                    role="alert"
+                  >
+                    {form.formState.errors.password?.message ||
+                      text.passwordError}
+                  </span>
+                )}
+              </label>
+              <p className="font-data text-xs">{text.localNote}</p>
+              <ActionButton
+                className="self-start"
+                shadowTone="red"
+                tone="ink"
+                type="submit"
+              >
+                {text.signIn}
+              </ActionButton>
+              <div className="mt-2 border-line border-t-2 pt-4 font-semibold text-sm">
+                <span>{text.noAccount} </span>
+                <Link
+                  className="font-bold underline transition-colors hover:text-yellow"
+                  search={{ returnTo }}
+                  to="/register"
+                >
+                  {text.goToRegister}
+                </Link>
+              </div>
+            </form>
+          )}
+          <div className="w-full">
+            <HeroFeaturedStage
+              featured={featured}
+              isHeroLoading={isHeroLoading}
+              locale={locale}
+              text={text}
+            />
           </div>
-        ) : (
-          <form
-            className="flex max-w-xl flex-col gap-5 border-[3px] border-line bg-surface p-6 shadow-[6px_6px_0_var(--line)]"
-            data-motion-panel
-            onSubmit={form.handleSubmit((values) => {
-              setProfile(values);
-              continueToDestination();
-            })}
-          >
-            <label
-              className="flex flex-col gap-2 font-semibold"
-              htmlFor="profile-name"
-            >
-              <span>{text.name}</span>
-              <Input
-                autoComplete="name"
-                id="profile-name"
-                {...form.register("name")}
-                className="h-12 rounded-none border-2 border-line bg-paper px-3"
-              />
-              {Boolean(form.formState.errors.name) && (
-                <span
-                  className="text-[#a91f22] text-sm dark:text-[#ff8680]"
-                  data-motion-alert
-                  role="alert"
-                >
-                  {text.nameError}
-                </span>
-              )}
-            </label>
-            <label
-              className="flex flex-col gap-2 font-semibold"
-              htmlFor="profile-email"
-            >
-              <span>{text.email}</span>
-              <Input
-                autoComplete="email"
-                id="profile-email"
-                type="email"
-                {...form.register("email")}
-                className="h-12 rounded-none border-2 border-line bg-paper px-3"
-              />
-              {Boolean(form.formState.errors.email) && (
-                <span
-                  className="text-[#a91f22] text-sm dark:text-[#ff8680]"
-                  data-motion-alert
-                  role="alert"
-                >
-                  {text.emailError}
-                </span>
-              )}
-            </label>
-            <p className="font-data text-xs">{text.localNote}</p>
-            <ActionButton className="self-start" type="submit">
-              {text.signIn}
-            </ActionButton>
-          </form>
-        )
+        </div>
       ) : (
         <div aria-busy="true" className="h-56 animate-pulse bg-surface" />
       )}

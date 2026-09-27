@@ -21,6 +21,9 @@ export interface RoastContext {
     | "search_milestone";
   favoriteAuthor?: string | null;
   favoriteGenre?: string | null;
+  filterPreviousValue?: string | null;
+  filterType?: "query" | "genre" | "price" | "author" | "length" | null;
+  filterValue?: string | null;
   genreFrom?: string | null;
   genreTo?: string | null;
   locale: Locale;
@@ -93,22 +96,97 @@ function getCategorySwitchFallback(
   ctx: RoastContext,
   isEn: boolean
 ): RoastPayload {
+  const target = ctx.genreTo || ctx.filterValue;
+  if (target && target !== "all") {
+    return {
+      roast: isEn
+        ? `Hopping over to genre "${target}"? Switching genres won't cure your chronic literary indecision.`
+        : `Pulando para o gênero "${target}"? Trocar de gênero a cada instante não vai curar sua indecisão crônica.`,
+      tag: isEn ? "[GENRE TOURIST]" : "[TURISTA LITERÁRIO]",
+    };
+  }
   return {
     roast: isEn
-      ? `Browsing through ${ctx.categorySwitches ?? 4} different genres without choosing one. Pick a lane or admit you just like clicking buttons.`
-      : `Pulando entre ${ctx.categorySwitches ?? 4} categorias sem escolher nada. Escolha um rumo ou admita que você só gosta de clicar em botões.`,
+      ? `Browsing through ${ctx.categorySwitches ?? ctx.searchCount ?? 3} different genres without choosing one. Pick a lane or admit you just like clicking buttons.`
+      : `Pulando entre ${ctx.categorySwitches ?? ctx.searchCount ?? 3} categorias sem escolher nada. Escolha um rumo ou admita que você só gosta de clicar em botões.`,
     tag: isEn ? "[GENRE TOURIST]" : "[TURISTA LITERÁRIO]",
   };
 }
 
-function getSearchFallback(ctx: RoastContext, isEn: boolean): RoastPayload {
-  const count = ctx.searchCount ?? 3;
+function getPriceFallback(
+  priceVal: string | null | undefined,
+  isEn: boolean
+): RoastPayload {
+  return {
+    roast: isEn
+      ? `Filtering by price band "${priceVal}"? Trying to pinch pennies on books that will spend decades unread on your shelf.`
+      : `Filtrando pela faixa de preço "${priceVal}"? Economizar centavos em livros que passarão anos intocados na sua estante não vai equilibrar seu orçamento.`,
+    tag: isEn ? "[BARGAIN HUNTER]" : "[PECHINCHA INÚTIL]",
+  };
+}
+
+function getAuthorFallback(
+  authorVal: string | null | undefined,
+  isEn: boolean
+): RoastPayload {
+  return {
+    roast: isEn
+      ? `Filtering specifically for "${authorVal}"? Bold move pretending you'll conquer their bibliography instead of using it as living room decoration.`
+      : `Filtrando pelo autor "${authorVal}"? Bela tentativa de fingir que vai devorar a bibliografia inteira em vez de usar os livros como enfeite de estante.`,
+    tag: isEn ? "[NAME DROPPER]" : "[SÍNDROME DE INTELECTUAL]",
+  };
+}
+
+function getLengthFallback(
+  lengthVal: string | null | undefined,
+  isEn: boolean
+): RoastPayload {
+  return {
+    roast: isEn
+      ? `Filtering books by length "${lengthVal}"? Picking thinner books won't help when you don't even open the front cover.`
+      : `Filtrando livros por tamanho "${lengthVal}"? Escolher livros finos não vai adiantar se você não abre nem a primeira página.`,
+    tag: isEn ? "[PAGE ILLUSION]" : "[ILUSÃO DE PÁGINAS]",
+  };
+}
+
+function getQueryFallback(
+  queryVal: string | null | undefined,
+  count: number,
+  isEn: boolean
+): RoastPayload {
+  if (queryVal) {
+    return {
+      roast: isEn
+        ? `Another search for "${queryVal}"? Typing book queries in the catalog won't burn calories or count as reading.`
+        : `Mais uma busca por "${queryVal}"? Digitar nomes de livros no catálogo não queima calorias nem conta como leitura.`,
+      tag: isEn ? "[SEARCH PARALYSIS]" : "[BUSCA INFINITA]",
+    };
+  }
   return {
     roast: isEn
       ? `Over ${count} searches and still no book chosen. Are you looking for literature or an excuse not to commit?`
       : `Mais de ${count} buscas seguidas e nenhum livro escolhido. Você está procurando literatura ou uma desculpa para não se comprometer?`,
     tag: isEn ? "[SEARCH PARALYSIS]" : "[BUSCA INFINITA]",
   };
+}
+
+function getSearchFallback(ctx: RoastContext, isEn: boolean): RoastPayload {
+  if (ctx.filterType === "price") {
+    return getPriceFallback(ctx.filterValue, isEn);
+  }
+  if (ctx.filterType === "author") {
+    return getAuthorFallback(ctx.filterValue, isEn);
+  }
+  if (ctx.filterType === "length") {
+    return getLengthFallback(ctx.filterValue, isEn);
+  }
+  if (ctx.filterType === "genre") {
+    return getCategorySwitchFallback(ctx, isEn);
+  }
+
+  const queryVal =
+    ctx.query || (ctx.filterType === "query" ? ctx.filterValue : null);
+  return getQueryFallback(queryVal, ctx.searchCount ?? 3, isEn);
 }
 
 function getOrderCompletedFallback(

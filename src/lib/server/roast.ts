@@ -27,6 +27,12 @@ const roastInputSchema = z.object({
   ]),
   favoriteAuthor: z.string().nullable().optional(),
   favoriteGenre: z.string().nullable().optional(),
+  filterPreviousValue: z.string().nullable().optional(),
+  filterType: z
+    .enum(["query", "genre", "price", "author", "length"])
+    .nullable()
+    .optional(),
+  filterValue: z.string().nullable().optional(),
   genreFrom: z.string().nullable().optional(),
   genreTo: z.string().nullable().optional(),
   locale: z.enum(["pt", "en"]).default("pt"),
@@ -67,7 +73,7 @@ function getSystemPrompt(isDiagnosis: boolean, locale: "pt" | "en") {
       "Deliver a quick, punchy, acidic roast joke targeting the user's book hoarding delusions (buying books they will never finish, dopamine rushes from cart clicks, endless wishlist graveyards, perpetual search paralysis, jumping across genres without choosing anything, pretending to be an intellectual). " +
       "Maximum 2 snappy sentences. " +
       'Respond STRICTLY with valid JSON in this format: {"tag": "[SOUND EFFECT]", "roast": "your punchline here"}. ' +
-      "The tag MUST be in uppercase inside brackets, like [ALERT!], [IDENTITY CRISIS], [DECORATION ONLY], [LAST CHANCE], [WISHLIST GRAVEYARD], [GENRE TOURIST], [SEARCH PARALYSIS]. " +
+      "The tag MUST be in uppercase inside brackets, like [ALERT!], [IDENTITY CRISIS], [DECORATION ONLY], [LAST CHANCE], [WISHLIST GRAVEYARD], [GENRE TOURIST], [SEARCH PARALYSIS], [BARGAIN HUNTER], [NAME DROPPER], [PAGE ILLUSION]. " +
       "Do NOT include markdown backticks."
     );
   }
@@ -76,7 +82,7 @@ function getSystemPrompt(isDiagnosis: boolean, locale: "pt" | "en") {
     "Você é o mestre de cerimônias de um show de comédia e fritada (roast) literária na livraria 'Depois Eu Leio'. " +
     "Faça uma piada ácida, afiada, irônica e hilária de no máximo 2 frases zombando do hábito do usuário de acumular livros que nunca vai ler (tsundoku, vício em dopamina de carrinho, cemitério de listas de desejos, trocar de gênero sem decidir nada, buscas infinitas sem comprar, fingir que lê calhamaço). " +
     'Responda ESTRITAMENTE com um JSON válido no formato: {"tag": "[EFEITO DE SOM]", "roast": "sua piada ácida aqui"}. ' +
-    "A tag DEVE ser em caixa alta entre colchetes, estilo vinheta de roast (ex: [ALERTA!], [TERAPIA JÁ], [OBJETO DECORATIVO], [HERANÇA NÃO LIDA], [CRISE EXISTENCIAL], [CEMITÉRIO DE DESEJOS], [TURISTA LITERÁRIO], [BUSCA INFINITA]). " +
+    "A tag DEVE ser em caixa alta entre colchetes, estilo vinheta de roast (ex: [ALERTA!], [TERAPIA JÁ], [OBJETO DECORATIVO], [HERANÇA NÃO LIDA], [CRISE EXISTENCIAL], [CEMITÉRIO DE DESEJOS], [TURISTA LITERÁRIO], [BUSCA INFINITA], [PECHINCHA INÚTIL], [SÍNDROME DE INTELECTUAL], [ILUSÃO DE PÁGINAS]). " +
     "NÃO use crases de markdown nem texto fora do JSON."
   );
 }
@@ -103,6 +109,38 @@ function getOrderLifecycleMessage(data: RoastContext, isEn: boolean): string {
     : `O usuário confirmou o pedido fictício via ${data.paymentMethod || "cartão de mentirinha"} somando R$ ${data.pretendSpend?.toFixed(2) || "0.00"} e ${data.totalPages} páginas que ficarão na estante.`;
 }
 
+function getFilterRoastMessage(
+  data: RoastContext,
+  isEn: boolean
+): string | null {
+  if (data.filterType === "price") {
+    return isEn
+      ? `The user just filtered the catalog by price: "${data.filterValue}" on their ${data.searchCount || 3}th search/filter adjustment. Roast their cheapskate rationalization and trying to bargain-hunt books they will never actually read.`
+      : `O usuário acabou de filtrar o catálogo por preço: "${data.filterValue}" na sua ${data.searchCount || 3}ª busca/filtro. Zombe da mania de pechinchar e economizar trocados em livros que nunca vai abrir na vida.`;
+  }
+  if (data.filterType === "author") {
+    return isEn
+      ? `The user just filtered the catalog by author: "${data.filterValue}" on their ${data.searchCount || 3}th search/filter adjustment. Roast their pretentious name-dropping and delusion that buying this specific author will make them an intellectual.`
+      : `O usuário acabou de filtrar o catálogo pelo autor: "${data.filterValue}" na sua ${data.searchCount || 3}ª busca/filtro. Zombe do exibicionismo intelectual e da ilusão de que filtrar esse autor específico vai torná-lo culto.`;
+  }
+  if (data.filterType === "length") {
+    return isEn
+      ? `The user just filtered the catalog by book length/size: "${data.filterValue}" on their ${data.searchCount || 3}th search/filter adjustment. Roast their delusion that choosing books of this page count will actually make them finish a book.`
+      : `O usuário acabou de filtrar o catálogo pelo tamanho/número de páginas: "${data.filterValue}" na sua ${data.searchCount || 3}ª busca/filtro. Zombe da ilusão de achar que escolher livros por tamanho vai fazer com que ele finalmente termine uma leitura.`;
+  }
+  return null;
+}
+
+function getCategoryRoastMessage(data: RoastContext, isEn: boolean): string {
+  const to = data.genreTo || data.filterValue || "another category";
+  const from =
+    data.genreFrom || data.filterPreviousValue || "previous category";
+  const count = data.categorySwitches || data.searchCount || 3;
+  return isEn
+    ? `The user just changed category/genre ${count} times without picking a book. Currently switching to "${to}" from "${from}". Extreme literary indecision and commitment issues.`
+    : `O usuário acabou de trocar de categoria/gênero ${count} vezes sem escolher nenhum livro. Agora mudando para "${to}" saindo de "${from}". Indecisão crônica e turismo literário sem foco.`;
+}
+
 function getBrowsingMilestoneMessage(
   data: RoastContext,
   isEn: boolean
@@ -112,14 +150,19 @@ function getBrowsingMilestoneMessage(
       ? `The user's wishlist just exceeded ${data.totalPages} total saved pages across ${data.wishlistCount || data.cartCount || 0} books. They are stockpiling books into their wishlist graveyard to pretend they will buy and read them later.`
       : `A lista de desejos do usuário acabou de ultrapassar ${data.totalPages} páginas no total em ${data.wishlistCount || data.cartCount || 0} livros salvos. Um cemitério de boas intenções e calhamaços salvos para um 'depois' que nunca chega.`;
   }
-  if (data.event === "category_switch_milestone") {
-    return isEn
-      ? `The user just switched categories/genres ${data.categorySwitches} times without picking a single book. Currently looking at "${data.genreTo || "another category"}" after leaving "${data.genreFrom || "previous category"}". Extreme literary indecision and commitment issues.`
-      : `O usuário acabou de trocar de categoria/gênero ${data.categorySwitches} vezes sem escolher nenhum livro. Agora olhando "${data.genreTo || "outra categoria"}" após sair de "${data.genreFrom || "categoria anterior"}". Indecisão crônica e turismo literário sem foco.`;
+  if (
+    data.event === "category_switch_milestone" ||
+    data.filterType === "genre"
+  ) {
+    return getCategoryRoastMessage(data, isEn);
+  }
+  const filterMsg = getFilterRoastMessage(data, isEn);
+  if (filterMsg) {
+    return filterMsg;
   }
   return isEn
-    ? `The user just ran their ${data.searchCount}th search query ("${data.query || "unknown"}"). Endless searching, zero reading. Severe search paralysis and procrastination.`
-    : `O usuário acabou de fazer sua ${data.searchCount}ª pesquisa no catálogo ("${data.query || "desconhecido"}"). Busca infinita, leitura zero. Paralisia de escolha e procrastinação pura.`;
+    ? `The user just ran their ${data.searchCount}th search query ("${data.query || data.filterValue || "unknown"}"). Endless searching, zero reading. Severe search paralysis and procrastination.`
+    : `O usuário acabou de fazer sua ${data.searchCount}ª pesquisa no catálogo ("${data.query || data.filterValue || "desconhecido"}"). Busca infinita, leitura zero. Paralisia de escolha e procrastinação pura.`;
 }
 
 function buildUserMessage(data: RoastContext): string {

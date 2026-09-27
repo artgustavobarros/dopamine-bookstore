@@ -1,16 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Search, SlidersHorizontal } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Search } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActionButton } from "@/components/store/action-button";
 import { BookCard } from "@/components/store/book-card";
+import { HeroFeaturedStage } from "@/components/store/hero-featured-stage";
 import { EmptyState } from "@/components/store/layout";
 import { Input } from "@/components/ui/input";
 import {
   type CatalogFilters,
   catalogAuthors,
   filterBooks,
-  formatNumber,
   type Genre,
   genreLabels,
   genres,
@@ -24,10 +24,7 @@ import {
   withMotion,
 } from "@/lib/motion";
 import { catalogQuery } from "@/lib/open-library";
-import {
-  triggerCategorySwitchRoast,
-  triggerSearchRoast,
-} from "@/lib/roast-trigger";
+import { triggerExplorationRoast } from "@/lib/roast-trigger";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/")({ component: Home });
@@ -66,51 +63,65 @@ function Home() {
   const filteredIds = filtered.map((book) => book.id).join(",");
   const featured = books.slice(0, 3);
   const featuredIds = featured.map((book) => book.id).join(",");
+  const isHeroLoading =
+    (!hydrated || query.isLoading || query.isPending) && featured.length === 0;
   useEffect(() => {
     if (query.data) {
       refreshBooks(query.data);
     }
   }, [query.data, refreshBooks]);
-  const categorySwitchCount = useRef(0);
-  const categoryRoastFired = useRef(false);
-  const searchCount = useRef(0);
-  const searchRoastFired = useRef(false);
+  const explorationCount = useRef(0);
   const prevSearchTerm = useRef("");
+
+  const handleExplorationAction = useCallback(
+    (
+      filterType: "query" | "genre" | "price" | "author" | "length",
+      nextValue: string,
+      prevValue?: string
+    ) => {
+      if (nextValue === prevValue) {
+        return;
+      }
+      explorationCount.current += 1;
+      if (explorationCount.current % 3 === 0) {
+        triggerExplorationRoast({
+          filterPreviousValue: prevValue,
+          filterType,
+          filterValue: nextValue,
+          locale,
+          searchCount: explorationCount.current,
+        });
+      }
+    },
+    [locale]
+  );
 
   useEffect(() => {
     if (searchTerm && searchTerm !== prevSearchTerm.current) {
+      const oldTerm = prevSearchTerm.current;
       prevSearchTerm.current = searchTerm;
-      searchCount.current += 1;
-      if (searchCount.current > 3 && !searchRoastFired.current) {
-        searchRoastFired.current = true;
-        triggerSearchRoast({
-          locale,
-          query: searchTerm,
-          searchCount: searchCount.current,
-        });
-      }
+      handleExplorationAction("query", searchTerm, oldTerm);
     }
-  }, [searchTerm, locale]);
+  }, [searchTerm, handleExplorationAction]);
 
   const update = <K extends keyof CatalogFilters>(
     key: K,
     value: CatalogFilters[K]
-  ) => setFilters((old) => ({ ...old, [key]: value }));
+  ) => {
+    const oldValue = filters[key];
+    if (oldValue !== value) {
+      setFilters((old) => ({ ...old, [key]: value }));
+      if (key === "price" || key === "author" || key === "length") {
+        handleExplorationAction(key, String(value), String(oldValue));
+      }
+    }
+  };
 
   const onSelectGenre = (genre: CatalogFilters["genre"]) => {
     if (genre !== filters.genre) {
       const oldGenre = filters.genre;
-      update("genre", genre);
-      categorySwitchCount.current += 1;
-      if (categorySwitchCount.current > 3 && !categoryRoastFired.current) {
-        categoryRoastFired.current = true;
-        triggerCategorySwitchRoast({
-          categorySwitches: categorySwitchCount.current,
-          genreFrom: oldGenre,
-          genreTo: genre,
-          locale,
-        });
-      }
+      setFilters((old) => ({ ...old, genre }));
+      handleExplorationAction("genre", genre, oldGenre);
     }
   };
 
@@ -144,17 +155,6 @@ function Home() {
               y: 14,
             },
             0.2
-          )
-          .from(
-            root.querySelectorAll("[data-hero-seal]"),
-            {
-              autoAlpha: 0,
-              clearProps: "opacity,visibility,transform",
-              duration: 0.6,
-              rotation: -200,
-              scale: 0,
-            },
-            0.7
           );
         timeline.eventCallback("onComplete", () => {
           root.dataset.heroReady = "true";
@@ -169,7 +169,11 @@ function Home() {
   useGSAP(
     () =>
       withMotion(() => {
-        const cards = hero.current?.querySelectorAll("[data-hero-book]");
+        const root = hero.current;
+        if (!root?.isConnected) {
+          return;
+        }
+        const cards = root.querySelectorAll("[data-hero-book]");
         if (cards?.length) {
           gsap.from(cards, {
             autoAlpha: 0,
@@ -178,6 +182,27 @@ function Home() {
             ease: "back.out(1.2)",
             stagger: 0.1,
             y: -60,
+          });
+        }
+        const seal = root.querySelectorAll("[data-hero-seal]");
+        if (seal?.length) {
+          gsap.from(seal, {
+            autoAlpha: 0,
+            clearProps: "opacity,visibility,transform",
+            duration: 0.6,
+            ease: "back.out(1.2)",
+            rotation: -200,
+            scale: 0,
+          });
+        }
+        const status = root.querySelectorAll("[data-hero-status]");
+        if (status?.length) {
+          gsap.from(status, {
+            autoAlpha: 0,
+            clearProps: "opacity,visibility,transform",
+            duration: 0.45,
+            ease: "power2.out",
+            y: 10,
           });
         }
       }),
@@ -291,63 +316,12 @@ function Home() {
               </ActionButton>
             </div>
           </div>
-          <div className="relative mx-auto aspect-[1.46] w-full max-w-[610px] border-[3px] border-line bg-blue text-[#141210] shadow-[7px_7px_0_var(--line)]">
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 bg-[length:11px_11px] bg-[radial-gradient(#14121066_1.3px,transparent_1.5px)]"
-            />
-            {featured.map((book, index) => (
-              <div
-                className={`absolute flex aspect-[0.7] w-[33%] flex-col justify-end overflow-hidden border-[#141210] border-[3px] bg-[#141210] p-2 shadow-[5px_5px_0_#141210] sm:p-3 ${index === 0 ? "top-[22%] left-[15%] -rotate-[8deg]" : index === 1 ? "top-[17%] left-[40%] z-10 rotate-[2deg]" : "top-[21%] left-[63%] rotate-[9deg]"}`}
-                data-hero-book
-                key={book.id}
-              >
-                {book.coverId ? (
-                  <img
-                    alt={book.title[locale]}
-                    className="absolute inset-0 h-full w-full object-cover"
-                    height={300}
-                    src={`https://covers.openlibrary.org/b/id/${book.coverId}-M.jpg`}
-                    width={200}
-                  />
-                ) : (
-                  <div
-                    aria-hidden="true"
-                    className="absolute inset-0 bg-[#141210] bg-[length:10px_10px] bg-[radial-gradient(#ffffff22_1.4px,transparent_1.5px)]"
-                  />
-                )}
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#141210]/80 via-transparent to-transparent"
-                />
-                <span className="relative z-10 w-fit bg-[#141210] px-1 py-0.5 font-data text-[9px] text-white sm:px-2 sm:text-xs">
-                  {book.pages === null
-                    ? text.pagesUnknown
-                    : `${formatNumber(book.pages, locale)} p.`}
-                </span>
-              </div>
-            ))}
-            <div
-              className="absolute top-[6%] right-[4%] z-20 flex size-21 rotate-12 flex-col items-center justify-center rounded-full border-[#141210] border-[3px] bg-yellow text-center font-display leading-none sm:size-28"
-              data-hero-seal
-            >
-              <span className="text-lg sm:text-2xl">R$ 0,00</span>
-              <span className="mt-1 font-accent text-xs sm:text-base">
-                {locale === "pt" ? "DE VERDADE" : "FOR REAL"}
-              </span>
-            </div>
-            <p className="absolute bottom-[4%] left-[4%] z-20 max-w-[45%] border-[#141210] border-[3px] bg-white px-2 py-1 font-bold font-data text-[9px] shadow-[4px_4px_0_#141210] sm:px-3 sm:py-2 sm:text-xs">
-              {locale === "pt"
-                ? `Em destaque: ${formatNumber(
-                    featured.reduce((sum, book) => sum + (book.pages ?? 0), 0),
-                    locale
-                  )} páginas que você não vai ler.`
-                : `Featured: ${formatNumber(
-                    featured.reduce((sum, book) => sum + (book.pages ?? 0), 0),
-                    locale
-                  )} pages you won't read.`}
-            </p>
-          </div>
+          <HeroFeaturedStage
+            featured={featured}
+            isHeroLoading={isHeroLoading}
+            locale={locale}
+            text={text}
+          />
         </div>
       </section>
       <section
@@ -360,12 +334,12 @@ function Home() {
             {filtered.length} {text.booksFound}
           </span>
         </div>
-        <div className="mb-5 flex gap-3">
-          <label className="relative block flex-1" htmlFor="catalog-search">
+        <div className="mb-5">
+          <label className="relative block w-full" htmlFor="catalog-search">
             <span className="sr-only">{text.search}</span>
             <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2" />
             <Input
-              className="h-12 rounded-none border-[3px] border-line bg-surface pl-12 text-base shadow-[3px_3px_0_var(--line)]"
+              className="h-12 w-full rounded-none border-[3px] border-line bg-surface pl-12 text-base shadow-[3px_3px_0_var(--line)]"
               id="catalog-search"
               onChange={(event) => update("query", event.target.value)}
               onKeyDown={(event) => {
@@ -377,10 +351,6 @@ function Home() {
               value={filters.query}
             />
           </label>
-          <div className="hidden items-center gap-2 border-[3px] border-line bg-surface px-4 font-bold font-data text-xs sm:flex">
-            <SlidersHorizontal size={17} />
-            {text.genre}
-          </div>
         </div>
         <div className="-mx-5 mb-6 flex gap-2 overflow-x-auto px-5 pb-3 sm:mx-0 sm:flex-wrap sm:px-0">
           {(["all", ...genres] as const).map((genre) => (

@@ -17,14 +17,14 @@
   --color-ink: var(--ink);
   --color-line: var(--line);
   --color-surface: var(--surface);
-  --color-yellow: #ffd84a;
-  --color-red: #e44f4b;
-  --color-blue: #5c80ed;
-  --color-pink: #e9abd3;
-  --color-green: #86dc82;
+  --color-card: var(--card);
+  --color-yellow: oklch(90.5% 0.182 98.111);
+  --color-red: oklch(63.7% 0.237 25.331);
+  --color-blue: oklch(62.3% 0.214 259.815);
+  --color-pink: oklch(82.3% 0.12 346.018);
+  --color-green: oklch(79.2% 0.209 151.711);
   --color-background: var(--paper);
   --color-foreground: var(--ink);
-  --color-card: var(--surface);
   --color-card-foreground: var(--ink);
   --color-popover: var(--surface);
   --color-popover-foreground: var(--ink);
@@ -34,8 +34,8 @@
   --color-secondary-foreground: var(--ink);
   --color-muted: var(--surface);
   --color-muted-foreground: var(--ink);
-  --color-accent: #ffd84a;
-  --color-accent-foreground: #141210;
+  --color-accent: oklch(90.5% 0.182 98.111);
+  --color-accent-foreground: oklch(14.7% 0.004 49.25);
   --color-border: var(--line);
   --color-input: var(--line);
   --color-ring: var(--line);
@@ -46,18 +46,20 @@
 }
 
 :root {
-  --paper: #f4f3ee;
-  --ink: #141210;
+  --paper: oklch(97% 0.001 106.424);
+  --ink: oklch(14.7% 0.004 49.25);
   --surface: #ffffff;
-  --line: #141210;
+  --card: #ffffff;
+  --line: oklch(14.7% 0.004 49.25);
   color-scheme: light;
 }
 
 .dark {
-  --paper: #1b1a18;
-  --ink: #f4f3ee;
-  --surface: #292722;
-  --line: #ffd84a;
+  --paper: oklch(14.7% 0.004 49.25);
+  --ink: oklch(97% 0.001 106.424);
+  --surface: oklch(21.6% 0.006 56.043);
+  --card: oklch(21.6% 0.006 56.043);
+  --line: oklch(90.5% 0.182 98.111);
   color-scheme: dark;
 }
 
@@ -68,8 +70,10 @@ body {
   min-width: 320px;
   margin: 0;
   font-family: "Work Sans", sans-serif;
+  -webkit-font-smoothing: antialiased;
   color: var(--ink);
   background: var(--paper);
+  transition: background 0.2s ease;
 }
 * {
   box-sizing: border-box;
@@ -80,13 +84,231 @@ select,
 textarea {
   font: inherit;
 }
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled):not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"]:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
 :focus-visible {
-  outline: 3px solid #e44f4b;
+  outline: 3px solid oklch(63.7% 0.237 25.331);
   outline-offset: 3px;
 }
 ::selection {
-  color: #141210;
-  background: #ffd84a;
+  color: oklch(14.7% 0.004 49.25);
+  background: oklch(90.5% 0.182 98.111);
+}
+
+/* Standalone native keyframes */
+@keyframes del-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes del-card {
+  from {
+    opacity: 0;
+    transform: translateY(22px) rotate(-2deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes del-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6) rotate(-4deg);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.06) rotate(1deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes del-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(1.8) rotate(-12deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.94) rotate(-1deg);
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes del-drop {
+  from {
+    opacity: 0;
+    translate: 0 -60px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@keyframes del-heart {
+  0% {
+    transform: scale(0.4);
+  }
+  60% {
+    transform: scale(1.35);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes del-bump {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.45);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes del-sheet {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes del-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes del-spin {
+  from {
+    rotate: -200deg;
+    scale: 0;
+  }
+  to {
+    rotate: 0deg;
+    scale: 1;
+  }
+}
+
+.animate-del-in {
+  animation: del-in 0.4s cubic-bezier(0.2, 0.9, 0.25, 1.2) backwards;
+}
+.animate-del-card {
+  animation: del-card 0.5s cubic-bezier(0.2, 0.9, 0.25, 1.2) backwards;
+}
+.animate-del-pop {
+  animation: del-pop 0.3s cubic-bezier(0.2, 0.9, 0.25, 1.2);
+}
+.animate-del-stamp {
+  animation: del-stamp 0.5s cubic-bezier(0.2, 0.9, 0.25, 1.2);
+}
+.animate-del-drop {
+  animation: del-drop 0.55s cubic-bezier(0.2, 0.9, 0.25, 1.2) backwards;
+}
+.animate-del-heart {
+  animation: del-heart 0.35s cubic-bezier(0.2, 0.9, 0.25, 1.2);
+}
+.animate-del-bump {
+  animation: del-bump 0.4s cubic-bezier(0.2, 0.9, 0.25, 1.2);
+}
+.animate-del-sheet {
+  animation: del-sheet 0.35s cubic-bezier(0.2, 0.9, 0.25, 1.2);
+}
+.animate-del-fade {
+  animation: del-fade 0.2s ease-out;
+}
+.animate-del-spin {
+  animation: del-spin 0.6s cubic-bezier(0.2, 0.9, 0.25, 1.2) backwards;
+}
+
+/* Tactile button classes */
+.btn-tactile {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+.btn-tactile:hover {
+  box-shadow: 6px 6px 0 var(--line);
+  transform: translate(-2px, -2px);
+}
+.btn-tactile:active {
+  box-shadow: 0px 0px 0 var(--line);
+  transform: translate(3px, 3px);
+}
+
+.btn-auth-submit {
+  box-shadow: 4px 4px 0 oklch(63.7% 0.237 25.331);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+.btn-auth-submit:hover {
+  box-shadow: 6px 6px 0 oklch(63.7% 0.237 25.331);
+  transform: translate(-2px, -2px);
+}
+.btn-auth-submit:active {
+  box-shadow: 2px 2px 0 oklch(63.7% 0.237 25.331);
+  transform: translate(3px, 3px);
+}
+
+@keyframes hero-dots-wave {
+  0% {
+    -webkit-mask-position: 0% 0%;
+    mask-position: 0% 0%;
+  }
+  100% {
+    -webkit-mask-position: 100% 100%;
+    mask-position: 100% 100%;
+  }
+}
+
+.hero-dots-wave {
+  -webkit-mask-image: linear-gradient(
+    115deg,
+    rgba(0, 0, 0, 0.15) 0%,
+    rgba(0, 0, 0, 0.15) 30%,
+    rgba(0, 0, 0, 0.95) 50%,
+    rgba(0, 0, 0, 0.15) 70%,
+    rgba(0, 0, 0, 0.15) 100%
+  );
+  mask-image: linear-gradient(
+    115deg,
+    rgba(0, 0, 0, 0.15) 0%,
+    rgba(0, 0, 0, 0.15) 30%,
+    rgba(0, 0, 0, 0.95) 50%,
+    rgba(0, 0, 0, 0.15) 70%,
+    rgba(0, 0, 0, 0.15) 100%
+  );
+  -webkit-mask-size: 260% 260%;
+  mask-size: 260% 260%;
+  animation: hero-dots-wave 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -96,5 +318,11 @@ textarea {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .hero-dots-wave {
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+    animation: none !important;
   }
 }

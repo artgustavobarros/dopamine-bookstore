@@ -34,6 +34,7 @@ import {
 import {
   getCartBooks,
   getWishlistBooks,
+  type Profile,
   type Review,
   useStore,
 } from "@/lib/store";
@@ -91,6 +92,7 @@ function BookDetail() {
   const { bookId } = Route.useParams();
   const locale = useStore((state) => state.locale);
   const profile = useStore((state) => state.profile);
+  const users = useStore((state) => state.users);
   const cartIds = useStore((state) => state.cartIds);
   const wishlistIds = useStore((state) => state.wishlistIds);
   const reviewsByBook = useStore((state) => state.reviews);
@@ -108,11 +110,10 @@ function BookDetail() {
   const toggleWish = useStore((state) => state.toggleWish);
   const addReview = useStore((state) => state.addReview);
   const text = t(locale);
-  const form = useForm<ReviewFields>({
-    defaultValues: { stars: 5, text: "" },
-    resolver: zodResolver(reviewSchema),
-  });
-  useInsertedPanelMotion(route, [hydrated, Boolean(profile), bookId]);
+  const isAuthenticated = Boolean(
+    profile && users[profile.email.toLowerCase()]
+  );
+  useInsertedPanelMotion(route, [hydrated, isAuthenticated, bookId]);
   const inCart = Boolean(book && cartIds.includes(book.id));
   const wished = Boolean(book && wishlistIds.includes(book.id));
   useGSAP(
@@ -203,33 +204,6 @@ function BookDetail() {
       </div>
     );
   }
-
-  const sampleReviews =
-    locale === "pt"
-      ? [
-          {
-            name: "Leitor anônimo",
-            stars: 5,
-            text: "Comprei há dois anos. Fica lindo na estante.",
-          },
-          {
-            name: "Marina, 31",
-            stars: 4,
-            text: "Li as primeiras páginas. Recomendo muito.",
-          },
-        ]
-      : [
-          {
-            name: "Anonymous reader",
-            stars: 5,
-            text: "Bought it two years ago. Looks great on the shelf.",
-          },
-          {
-            name: "Marina, 31",
-            stars: 4,
-            text: "Read the first few pages. Highly recommend.",
-          },
-        ];
 
   return (
     <div className="mx-auto max-w-7xl px-5 pt-10 sm:px-6" ref={route}>
@@ -323,107 +297,181 @@ function BookDetail() {
           </div>
         </div>
       </div>
-      <section className="mt-16">
-        <h2 className="border-line border-b-[3px] pb-3 font-display text-3xl">
-          {text.reviews}
-        </h2>
-        {hydrated && profile ? (
-          <form
-            className="mt-6 flex flex-col gap-4 border-[3px] border-line bg-surface p-5 shadow-[6px_6px_0_var(--line)]"
-            data-motion-panel
-            onSubmit={form.handleSubmit(({ stars, text: reviewText }) => {
-              addReview(book.id, stars, reviewText);
-              form.reset();
-              toast.success(text.reviewToast);
-            })}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <strong>{text.reviewPrompt}</strong>
-              <fieldset className="flex gap-1">
-                <legend className="sr-only">{text.ratingError}</legend>
-                {[1, 2, 3, 4, 5].map((rating) => (
-                  <button
-                    aria-label={`${rating} / 5`}
-                    aria-pressed={form.watch("stars") === rating}
-                    className="p-1 text-red"
-                    key={rating}
-                    onClick={() =>
-                      form.setValue("stars", rating, { shouldValidate: true })
-                    }
-                    type="button"
-                  >
-                    <Star
-                      className={
-                        rating <= form.watch("stars") ? "fill-red" : ""
-                      }
-                      size={27}
-                    />
-                  </button>
-                ))}
-              </fieldset>
-            </div>
-            <Textarea
-              {...form.register("text")}
-              className="rounded-none border-2 border-line bg-paper text-base"
-              placeholder={text.reviewPlaceholder}
-              rows={3}
-            />
-            {Boolean(form.formState.errors.text) && (
-              <p
-                className="font-semibold text-[#a91f22] text-sm dark:text-[#ff8680]"
-                role="alert"
-              >
-                {text.reviewError}
-              </p>
-            )}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="font-data text-xs">
-                {text.signedAs} {profile.name}
-              </span>
-              <ActionButton type="submit">{text.publish}</ActionButton>
-            </div>
-          </form>
-        ) : (
-          <div
-            className="mt-6 flex flex-wrap items-center justify-between gap-4 border-[3px] border-line border-dashed p-5"
-            data-motion-panel
-          >
-            <p className="font-semibold">{text.signInReview}</p>
+      <BookReviewSection
+        addReview={addReview}
+        book={book}
+        hydrated={hydrated}
+        isAuthenticated={isAuthenticated}
+        locale={locale}
+        profile={profile}
+        reviews={reviews}
+        text={text}
+      />
+    </div>
+  );
+}
+
+function getSampleReviews(locale: Locale) {
+  return locale === "pt"
+    ? [
+        {
+          name: "Leitor anônimo",
+          stars: 5,
+          text: "Comprei há dois anos. Fica lindo na estante.",
+        },
+        {
+          name: "Marina, 31",
+          stars: 4,
+          text: "Li as primeiras páginas. Recomendo muito.",
+        },
+      ]
+    : [
+        {
+          name: "Anonymous reader",
+          stars: 5,
+          text: "Bought it two years ago. Looks great on the shelf.",
+        },
+        {
+          name: "Marina, 31",
+          stars: 4,
+          text: "Read the first few pages. Highly recommend.",
+        },
+      ];
+}
+
+interface BookReviewSectionProps {
+  addReview: (bookId: string, stars: number, text: string) => void;
+  book: Book;
+  hydrated: boolean;
+  isAuthenticated: boolean;
+  locale: Locale;
+  profile: Profile | null;
+  reviews: Review[];
+  text: ReturnType<typeof t>;
+}
+
+function BookReviewSection({
+  addReview,
+  book,
+  hydrated,
+  isAuthenticated,
+  locale,
+  profile,
+  reviews,
+  text,
+}: BookReviewSectionProps) {
+  const form = useForm<ReviewFields>({
+    defaultValues: { stars: 5, text: "" },
+    resolver: zodResolver(reviewSchema),
+  });
+  const sampleReviews = getSampleReviews(locale);
+
+  return (
+    <section className="mt-16">
+      <h2 className="border-line border-b-[3px] pb-3 font-display text-3xl">
+        {text.reviews}
+      </h2>
+      {hydrated && isAuthenticated && profile ? (
+        <form
+          className="mt-6 flex flex-col gap-4 border-[3px] border-line bg-surface p-5 shadow-[6px_6px_0_var(--line)]"
+          data-motion-panel
+          onSubmit={form.handleSubmit(({ stars, text: reviewText }) => {
+            addReview(book.id, stars, reviewText);
+            form.reset();
+            toast.success(text.reviewToast);
+          })}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <strong>{text.reviewPrompt}</strong>
+            <fieldset className="flex gap-1">
+              <legend className="sr-only">{text.ratingError}</legend>
+              {[1, 2, 3, 4, 5].map((rating) => (
+                <button
+                  aria-label={`${rating} / 5`}
+                  aria-pressed={form.watch("stars") === rating}
+                  className="p-1 text-red"
+                  key={rating}
+                  onClick={() =>
+                    form.setValue("stars", rating, { shouldValidate: true })
+                  }
+                  type="button"
+                >
+                  <Star
+                    className={rating <= form.watch("stars") ? "fill-red" : ""}
+                    size={27}
+                  />
+                </button>
+              ))}
+            </fieldset>
+          </div>
+          <Textarea
+            {...form.register("text")}
+            className="rounded-none border-2 border-line bg-paper text-base"
+            placeholder={text.reviewPlaceholder}
+            rows={3}
+          />
+          {Boolean(form.formState.errors.text) && (
+            <p
+              className="font-semibold text-[#a91f22] text-sm dark:text-[#ff8680]"
+              role="alert"
+            >
+              {text.reviewError}
+            </p>
+          )}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="font-data text-xs">
+              {text.signedAs} {profile.name}
+            </span>
+            <ActionButton type="submit">{text.publish}</ActionButton>
+          </div>
+        </form>
+      ) : (
+        <div
+          className="mt-6 flex flex-wrap items-center justify-between gap-4 border-[3px] border-line border-dashed p-5"
+          data-motion-panel
+        >
+          <p className="font-semibold">{text.signInReview}</p>
+          <div className="flex flex-wrap gap-3">
+            <ActionButton asChild>
+              <Link search={{ returnTo: `/books/${book.id}` }} to="/register">
+                {text.register}
+              </Link>
+            </ActionButton>
             <ActionButton asChild tone="surface">
               <Link search={{ returnTo: `/books/${book.id}` }} to="/account">
                 {text.account}
               </Link>
             </ActionButton>
           </div>
-        )}
-        <div className="mt-7 grid gap-5 md:grid-cols-3">
-          {[
-            ...reviews,
-            ...sampleReviews.map((review, index) => ({
-              ...review,
-              id: `sample-${index}`,
-            })),
-          ].map((review) => (
-            <article
-              className="border-[3px] border-line bg-surface p-5 shadow-[4px_4px_0_var(--line)]"
-              key={review.id}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <strong>{review.name}</strong>
-                <span
-                  aria-label={`${review.stars} / 5`}
-                  className="whitespace-nowrap text-red"
-                  role="img"
-                >
-                  {"★".repeat(review.stars)}
-                  {"☆".repeat(5 - review.stars)}
-                </span>
-              </div>
-              <p className="mt-3 leading-relaxed">{review.text}</p>
-            </article>
-          ))}
         </div>
-      </section>
-    </div>
+      )}
+      <div className="mt-7 grid gap-5 md:grid-cols-3">
+        {[
+          ...reviews,
+          ...sampleReviews.map((review, index) => ({
+            ...review,
+            id: `sample-${index}`,
+          })),
+        ].map((review) => (
+          <article
+            className="border-[3px] border-line bg-surface p-5 shadow-[4px_4px_0_var(--line)]"
+            key={review.id}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <strong>{review.name}</strong>
+              <span
+                aria-label={`${review.stars} / 5`}
+                className="whitespace-nowrap text-red"
+                role="img"
+              >
+                {"★".repeat(review.stars)}
+                {"☆".repeat(5 - review.stars)}
+              </span>
+            </div>
+            <p className="mt-3 leading-relaxed">{review.text}</p>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }

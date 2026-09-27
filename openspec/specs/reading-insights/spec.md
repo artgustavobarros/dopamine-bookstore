@@ -15,7 +15,7 @@ The application SHALL calculate insights from completed local orders, including 
 - **THEN** the displayed values reflect the saved order contents and remain consistent after reload
 
 ### Requirement: Contextual humorous feedback
-The application SHALL show short, dismissible feedback after meaningful actions such as adding a book, saving a wish, posting a review, or completing an order. Feedback SHALL not prevent the action or obscure essential controls. In addition to local instant notifications, the application SHALL trigger AI roast milestone evaluations on high-impact moments (cart crossing 3+ items, cart exceeding 1,000 pages, wishlist exceeding 1,000 or 2,000 pages, switching catalog categories more than 3 times, executing more than 3 searches, opening checkout, or completing a simulated order) displaying punchy acidic commentary.
+The application SHALL show short, dismissible feedback after meaningful actions such as adding a book, saving a wish, posting a review, or completing an order. Feedback SHALL not prevent the action or obscure essential controls. In addition to local instant notifications, the application SHALL trigger AI roast milestone evaluations on high-impact moments (cart crossing 3+ items, cart exceeding 1,000 pages, wishlist exceeding 1,000 or 2,000 pages, opening checkout, completing a simulated order, or every 3 exploratory search and filter adjustments including text query, genre, price, author, and length) displaying punchy acidic commentary that references the active parameter changed.
 
 #### Scenario: Add a book
 - **WHEN** a visitor adds a book to the cart
@@ -29,13 +29,9 @@ The application SHALL show short, dismissible feedback after meaningful actions 
 - **WHEN** saving a book to the wishlist causes total wishlist pages to cross 1,000 or 2,000 pages
 - **THEN** an AI roast milestone toast appears with an uppercase sound-effect tag mocking wishlist accumulation, falling back gracefully if inference is slow or offline
 
-#### Scenario: Category hopping indecision AI roast trigger
-- **WHEN** a visitor switches catalog category filters more than 3 times in a browsing session
-- **THEN** an AI roast milestone toast appears mocking literary indecision and genre browsing commitment issues
-
-#### Scenario: Search iteration indecision AI roast trigger
-- **WHEN** a visitor executes more than 3 catalog search queries in a browsing session
-- **THEN** an AI roast milestone toast appears mocking endless searching without committing to a book
+#### Scenario: Unified search and filter cadence AI roast trigger
+- **WHEN** a visitor performs any combination of catalog search or filter changes (query, genre, price, author, length) reaching a multiple of 3 exploratory actions (3, 6, 9...)
+- **THEN** an AI roast milestone toast appears referencing the specific parameter and value that was modified during that 3rd action, falling back gracefully if inference is slow or offline
 
 ### Requirement: Dedicated Reader Psychological Roast (Diagnóstico do Leitor)
 The application SHALL provide a dedicated "Diagnóstico do Leitor" (Reader's Roast / Fritada Literária) card in the `/stats` route that analyzes the visitor's overall shopping habits, pretend spend, favorite genres, and unread book hoarding. The card SHALL offer an on-demand "Gerar Diagnóstico" / "Generate Roast" action with animated feedback and display a detailed roast summary.

@@ -126,6 +126,41 @@ export async function handleToggleWishWithMilestones({
   }
 }
 
+export async function triggerExplorationRoast({
+  filterPreviousValue,
+  filterType,
+  filterValue,
+  locale,
+  searchCount,
+}: {
+  filterPreviousValue?: string | null;
+  filterType: "query" | "genre" | "price" | "author" | "length";
+  filterValue?: string | null;
+  locale: Locale;
+  searchCount: number;
+}) {
+  try {
+    const isGenre = filterType === "genre";
+    const roast = await generateRoastFn({
+      data: {
+        categorySwitches: isGenre ? searchCount : undefined,
+        event: isGenre ? "category_switch_milestone" : "search_milestone",
+        filterPreviousValue,
+        filterType,
+        filterValue,
+        genreFrom: isGenre ? filterPreviousValue : undefined,
+        genreTo: isGenre ? filterValue : undefined,
+        locale,
+        query: filterType === "query" ? (filterValue ?? undefined) : undefined,
+        searchCount,
+      },
+    });
+    showRoastToast(roast);
+  } catch {
+    // Handled inside generateRoastFn
+  }
+}
+
 export async function triggerCategorySwitchRoast({
   categorySwitches,
   genreFrom,
@@ -137,20 +172,13 @@ export async function triggerCategorySwitchRoast({
   genreTo?: string | null;
   locale: Locale;
 }) {
-  try {
-    const roast = await generateRoastFn({
-      data: {
-        categorySwitches,
-        event: "category_switch_milestone",
-        genreFrom,
-        genreTo,
-        locale,
-      },
-    });
-    showRoastToast(roast);
-  } catch {
-    // Handled inside generateRoastFn
-  }
+  await triggerExplorationRoast({
+    filterPreviousValue: genreFrom,
+    filterType: "genre",
+    filterValue: genreTo,
+    locale,
+    searchCount: categorySwitches,
+  });
 }
 
 export async function triggerSearchRoast({
@@ -162,17 +190,10 @@ export async function triggerSearchRoast({
   searchCount: number;
   locale: Locale;
 }) {
-  try {
-    const roast = await generateRoastFn({
-      data: {
-        event: "search_milestone",
-        locale,
-        query,
-        searchCount,
-      },
-    });
-    showRoastToast(roast);
-  } catch {
-    // Handled inside generateRoastFn
-  }
+  await triggerExplorationRoast({
+    filterType: "query",
+    filterValue: query,
+    locale,
+    searchCount,
+  });
 }

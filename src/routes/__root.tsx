@@ -163,7 +163,7 @@ function NotFoundPage() {
   const locale = useStore((state) => state.locale);
   const text = t(locale);
   return (
-    <div className="mx-auto max-w-5xl px-5 pt-16">
+    <div className="mx-auto w-full max-w-5xl px-5 pt-16">
       <div className="border-[3px] border-line bg-surface p-10 text-center shadow-[6px_6px_0_var(--line)]">
         <h1 className="font-display text-4xl">{text.notFound}</h1>
         <ActionButton asChild className="mt-6">

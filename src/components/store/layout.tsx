@@ -34,7 +34,11 @@ export function StoreLayout() {
   const cartIds = useStore((state) => state.cartIds);
   const wishlistIds = useStore((state) => state.wishlistIds);
   const profile = useStore((state) => state.profile);
+  const users = useStore((state) => state.users);
   const hydrated = useStore((state) => state.hydrated);
+  const isAuthenticated = Boolean(
+    profile && users[profile.email.toLowerCase()]
+  );
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
@@ -120,7 +124,10 @@ export function StoreLayout() {
   ));
 
   return (
-    <div className="min-h-screen bg-paper text-ink" data-hydrated={hydrated}>
+    <div
+      className="flex min-h-dvh min-h-screen flex-col bg-paper text-ink"
+      data-hydrated={hydrated}
+    >
       <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 bg-[#141210] px-4 py-2 font-data text-[10px] text-white uppercase tracking-wide sm:text-xs">
         <span>{text.bar1}</span>
         <span className="text-yellow">✦</span>
@@ -175,8 +182,18 @@ export function StoreLayout() {
               className="hidden border-[3px] border-line bg-surface px-3 py-1.5 font-bold text-sm hover:bg-yellow hover:text-[#141210] md:inline-flex"
               to="/account"
             >
-              {hydrated && profile ? profile.name.split(" ")[0] : text.account}
+              {hydrated && isAuthenticated && profile
+                ? profile.name.split(" ")[0]
+                : text.account}
             </Link>
+            {hydrated && !isAuthenticated ? (
+              <Link
+                className="hidden border-[3px] border-line bg-yellow px-3 py-1.5 font-bold text-[#141210] text-sm shadow-[3px_3px_0_var(--line)] hover:bg-surface md:inline-flex"
+                to="/register"
+              >
+                {text.register}
+              </Link>
+            ) : null}
             <Sheet onOpenChange={setOpen} open={open}>
               <SheetTrigger asChild>
                 <button
@@ -233,9 +250,22 @@ export function StoreLayout() {
                       onClick={() => setOpen(false)}
                       to="/account"
                     >
-                      {hydrated && profile ? profile.name : text.account}
+                      {hydrated && isAuthenticated && profile
+                        ? profile.name
+                        : text.account}
                     </Link>
                   </SheetClose>
+                  {hydrated && !isAuthenticated ? (
+                    <SheetClose asChild>
+                      <Link
+                        className="border-[3px] border-line bg-surface px-4 py-3 font-bold shadow-[4px_4px_0_var(--line)]"
+                        onClick={() => setOpen(false)}
+                        to="/register"
+                      >
+                        {text.register}
+                      </Link>
+                    </SheetClose>
+                  ) : null}
                 </nav>
                 <SheetFooter className="mt-auto flex-row items-center gap-3 border-line border-t-[3px] bg-paper p-5">
                   <button
@@ -262,7 +292,7 @@ export function StoreLayout() {
           </div>
         </div>
       </header>
-      <main id="main-content">
+      <main className="flex-1" id="main-content">
         <Outlet />
       </main>
       <footer className="mt-20 border-line border-t-[3px] bg-yellow text-[#141210]">
