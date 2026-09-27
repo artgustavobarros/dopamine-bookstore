@@ -9,19 +9,28 @@ export interface RoastContext {
   authorCount?: number;
   bookTitle?: string;
   cartCount?: number;
+  categorySwitches?: number;
   event:
     | "cart_milestone_count"
     | "cart_milestone_pages"
     | "checkout_opened"
     | "order_completed"
-    | "diagnosis";
+    | "diagnosis"
+    | "wishlist_milestone_pages"
+    | "category_switch_milestone"
+    | "search_milestone";
   favoriteAuthor?: string | null;
   favoriteGenre?: string | null;
+  genreFrom?: string | null;
+  genreTo?: string | null;
   locale: Locale;
   paymentMethod?: string;
   pretendSpend?: number;
+  query?: string;
   russianCount?: number;
+  searchCount?: number;
   totalPages?: number;
+  wishlistCount?: number;
 }
 
 function getCartCountFallback(ctx: RoastContext, isEn: boolean): RoastPayload {
@@ -56,6 +65,49 @@ function getCartPagesFallback(ctx: RoastContext, isEn: boolean): RoastPayload {
       ? "Over 1,000 pages accumulated. Perfect weight to keep your coffee table from wobbling."
       : "Mais de 1.000 páginas acumuladas. Peso perfeito para calçar o pé daquela mesa de centro bamba.",
     tag: isEn ? "[DECORATION ONLY]" : "[OBJETO DECORATIVO]",
+  };
+}
+
+function getWishlistPagesFallback(
+  ctx: RoastContext,
+  isEn: boolean
+): RoastPayload {
+  const pages = ctx.totalPages ?? 1000;
+  if (pages >= 2000) {
+    return {
+      roast: isEn
+        ? `Over ${pages.toLocaleString("en-US")} pages saved in your wishlist. That's not a wishlist anymore, that's an archaeological site of unread dreams.`
+        : `Mais de ${pages.toLocaleString("pt-BR")} páginas na lista de desejos. Isso não é uma lista de desejos, é um sítio arqueológico de promessas não cumpridas.`,
+      tag: isEn ? "[WISHLIST GRAVEYARD]" : "[CEMITÉRIO DE DESEJOS]",
+    };
+  }
+  return {
+    roast: isEn
+      ? "Over 1,000 pages saved for later. We both know 'later' is where books go to collect digital dust."
+      : "Mais de 1.000 páginas salvas para depois. Sabemos muito bem que 'depois' é o lugar onde os livros pegam poeira digital.",
+    tag: isEn ? "[PURE ILLUSION]" : "[ILUSÃO PURA]",
+  };
+}
+
+function getCategorySwitchFallback(
+  ctx: RoastContext,
+  isEn: boolean
+): RoastPayload {
+  return {
+    roast: isEn
+      ? `Browsing through ${ctx.categorySwitches ?? 4} different genres without choosing one. Pick a lane or admit you just like clicking buttons.`
+      : `Pulando entre ${ctx.categorySwitches ?? 4} categorias sem escolher nada. Escolha um rumo ou admita que você só gosta de clicar em botões.`,
+    tag: isEn ? "[GENRE TOURIST]" : "[TURISTA LITERÁRIO]",
+  };
+}
+
+function getSearchFallback(ctx: RoastContext, isEn: boolean): RoastPayload {
+  const count = ctx.searchCount ?? 3;
+  return {
+    roast: isEn
+      ? `Over ${count} searches and still no book chosen. Are you looking for literature or an excuse not to commit?`
+      : `Mais de ${count} buscas seguidas e nenhum livro escolhido. Você está procurando literatura ou uma desculpa para não se comprometer?`,
+    tag: isEn ? "[SEARCH PARALYSIS]" : "[BUSCA INFINITA]",
   };
 }
 
@@ -109,6 +161,12 @@ export function getFallbackRoast(ctx: RoastContext): RoastPayload {
       return getCartCountFallback(ctx, isEn);
     case "cart_milestone_pages":
       return getCartPagesPages(ctx, isEn);
+    case "wishlist_milestone_pages":
+      return getWishlistPagesFallback(ctx, isEn);
+    case "category_switch_milestone":
+      return getCategorySwitchFallback(ctx, isEn);
+    case "search_milestone":
+      return getSearchFallback(ctx, isEn);
     case "checkout_opened":
       return {
         roast: isEn

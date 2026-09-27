@@ -11,6 +11,7 @@ const noMatchPattern = /nada/i;
 const blackBgPattern = /bg-\[#141210\]/;
 const redBgPattern = /bg-red/;
 const blueBgPattern = /bg-blue/;
+const wishlistRoastPattern = /\[(ILUSÃO PURA|CEMITÉRIO DE DESEJOS)\]/;
 
 const works = [
   {
@@ -360,4 +361,74 @@ test("hero renders 3 featured books with black styling and covers, and SEO/AEO m
   expect(jsonText).toContain("BookStore");
   expect(jsonText).toContain("FAQPage");
   expect(jsonText).toContain("Dopamine Bookstore");
+});
+
+test("triggers roast toasts on wishlist pages milestone, category switches, and repeated searches", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.locator('[data-hydrated="true"]')).toBeVisible();
+
+  // 1. Category switches (>3 switches triggers [TURISTA LITERÁRIO])
+  const sciFiBtn = page.getByRole("button", {
+    exact: true,
+    name: "Ficção científica",
+  });
+  const habitsBtn = page.getByRole("button", {
+    exact: true,
+    name: "Produtividade",
+  });
+  const classicsBtn = page.getByRole("button", {
+    exact: true,
+    name: "Clássicos",
+  });
+  const allBtn = page.getByRole("button", { exact: true, name: "Todos" });
+
+  await sciFiBtn.click(); // switch 1
+  await habitsBtn.click(); // switch 2
+  await classicsBtn.click(); // switch 3
+  await allBtn.click(); // switch 4 (>3 switches)
+
+  await expect(page.getByText("[TURISTA LITERÁRIO]")).toBeVisible({
+    timeout: 10_000,
+  });
+
+  // 2. Repeated searches (>3 searches triggers [BUSCA INFINITA])
+  const searchInput = page.getByLabel("Buscar título ou autor");
+  await searchInput.fill("duna");
+  await searchInput.press("Enter");
+  await searchInput.fill("machado");
+  await searchInput.press("Enter");
+  await searchInput.fill("clarice");
+  await searchInput.press("Enter");
+  await searchInput.fill("tolstoi");
+  await searchInput.press("Enter");
+
+  await expect(page.getByText("[BUSCA INFINITA]")).toBeVisible({
+    timeout: 10_000,
+  });
+
+  // 3. Wishlist pages milestone: add books until wishlist pages exceed 1,000 pages
+  await searchInput.fill("");
+  await searchInput.press("Enter");
+  await expect(page.locator("#catalog article")).toHaveCount(3);
+  await page.locator("#catalog article").first().scrollIntoViewIfNeeded();
+
+  const articles = page.locator("#catalog article");
+  await articles
+    .nth(0)
+    .getByRole("button", { name: "Salvar nos desejos" })
+    .click(); // 208 pages
+  await articles
+    .nth(1)
+    .getByRole("button", { name: "Salvar nos desejos" })
+    .click(); // 208 + 320 = 528 pages
+  await articles
+    .nth(2)
+    .getByRole("button", { name: "Salvar nos desejos" })
+    .click(); // 528 + 600 = 1128 pages (> 1000 pages)
+
+  await expect(page.getByText(wishlistRoastPattern).first()).toBeVisible({
+    timeout: 10_000,
+  });
 });

@@ -280,6 +280,8 @@ export function getCartBooks(
     .filter((book): book is Book => Boolean(book));
 }
 
+export const getWishlistBooks = getCartBooks;
+
 export function getCartTotals(ids: string[], bookCache: Record<string, Book>) {
   const selected = getCartBooks(ids, bookCache);
   return {

@@ -11,8 +11,11 @@ import {
 } from "@/lib/catalog";
 import { t } from "@/lib/i18n";
 import { gsap, POINTER_QUERY, useGSAP, withMotion } from "@/lib/motion";
-import { handleAddBookWithMilestones } from "@/lib/roast-trigger";
-import { getCartBooks, useStore } from "@/lib/store";
+import {
+  handleAddBookWithMilestones,
+  handleToggleWishWithMilestones,
+} from "@/lib/roast-trigger";
+import { getCartBooks, getWishlistBooks, useStore } from "@/lib/store";
 import { ActionButton } from "./action-button";
 import { BookCover } from "./book-cover";
 
@@ -264,9 +267,18 @@ export function BookCard({
             aria-pressed={wished}
             className="w-11 p-0"
             disabled={!hydrated}
-            onClick={() => {
+            onClick={async () => {
+              const wishlistBooks = getWishlistBooks(
+                useStore.getState().wishlistIds,
+                useStore.getState().bookCache
+              );
               if (toggleWish(book)) {
                 toast.info(text.wishToast);
+                await handleToggleWishWithMilestones({
+                  book,
+                  locale,
+                  wishlistBooks,
+                });
               }
             }}
             tone={wished ? "yellow" : "surface"}

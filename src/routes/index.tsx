@@ -24,6 +24,10 @@ import {
   withMotion,
 } from "@/lib/motion";
 import { catalogQuery } from "@/lib/open-library";
+import {
+  triggerCategorySwitchRoast,
+  triggerSearchRoast,
+} from "@/lib/roast-trigger";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/")({ component: Home });
@@ -67,10 +71,48 @@ function Home() {
       refreshBooks(query.data);
     }
   }, [query.data, refreshBooks]);
+  const categorySwitchCount = useRef(0);
+  const categoryRoastFired = useRef(false);
+  const searchCount = useRef(0);
+  const searchRoastFired = useRef(false);
+  const prevSearchTerm = useRef("");
+
+  useEffect(() => {
+    if (searchTerm && searchTerm !== prevSearchTerm.current) {
+      prevSearchTerm.current = searchTerm;
+      searchCount.current += 1;
+      if (searchCount.current > 3 && !searchRoastFired.current) {
+        searchRoastFired.current = true;
+        triggerSearchRoast({
+          locale,
+          query: searchTerm,
+          searchCount: searchCount.current,
+        });
+      }
+    }
+  }, [searchTerm, locale]);
+
   const update = <K extends keyof CatalogFilters>(
     key: K,
     value: CatalogFilters[K]
   ) => setFilters((old) => ({ ...old, [key]: value }));
+
+  const onSelectGenre = (genre: CatalogFilters["genre"]) => {
+    if (genre !== filters.genre) {
+      const oldGenre = filters.genre;
+      update("genre", genre);
+      categorySwitchCount.current += 1;
+      if (categorySwitchCount.current > 3 && !categoryRoastFired.current) {
+        categoryRoastFired.current = true;
+        triggerCategorySwitchRoast({
+          categorySwitches: categorySwitchCount.current,
+          genreFrom: oldGenre,
+          genreTo: genre,
+          locale,
+        });
+      }
+    }
+  };
 
   useGSAP(
     () =>
@@ -326,6 +368,11 @@ function Home() {
               className="h-12 rounded-none border-[3px] border-line bg-surface pl-12 text-base shadow-[3px_3px_0_var(--line)]"
               id="catalog-search"
               onChange={(event) => update("query", event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  setSearchTerm(filters.query.trim());
+                }
+              }}
               placeholder={text.search}
               value={filters.query}
             />
@@ -340,7 +387,7 @@ function Home() {
             <button
               className={`shrink-0 border-[2px] border-line px-3 py-2 font-bold text-sm transition-colors hover:bg-yellow hover:text-[#141210] ${filters.genre === genre ? "bg-ink text-paper" : "bg-surface"}`}
               key={genre}
-              onClick={() => update("genre", genre)}
+              onClick={() => onSelectGenre(genre)}
               type="button"
             >
               {genre === "all" ? text.all : genreLabels[genre as Genre][locale]}

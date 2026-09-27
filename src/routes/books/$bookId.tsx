@@ -27,8 +27,16 @@ import {
   withMotion,
 } from "@/lib/motion";
 import { bookQuery } from "@/lib/open-library";
-import { handleAddBookWithMilestones } from "@/lib/roast-trigger";
-import { getCartBooks, type Review, useStore } from "@/lib/store";
+import {
+  handleAddBookWithMilestones,
+  handleToggleWishWithMilestones,
+} from "@/lib/roast-trigger";
+import {
+  getCartBooks,
+  getWishlistBooks,
+  type Review,
+  useStore,
+} from "@/lib/store";
 
 export const Route = createFileRoute("/books/$bookId")({
   component: BookDetail,
@@ -291,9 +299,18 @@ function BookDetail() {
             <ActionButton
               aria-pressed={wished}
               disabled={!hydrated}
-              onClick={() => {
+              onClick={async () => {
+                const wishlistBooks = getWishlistBooks(
+                  useStore.getState().wishlistIds,
+                  useStore.getState().bookCache
+                );
                 if (toggleWish(book)) {
                   toast.info(text.wishToast);
+                  await handleToggleWishWithMilestones({
+                    book,
+                    locale,
+                    wishlistBooks,
+                  });
                 }
               }}
               tone={wished ? "yellow" : "surface"}

@@ -86,3 +86,93 @@ export async function handleAddBookWithMilestones({
     }
   }
 }
+
+export async function handleToggleWishWithMilestones({
+  book,
+  wishlistBooks,
+  locale,
+}: {
+  book: Book;
+  wishlistBooks: Book[];
+  locale: Locale;
+}) {
+  const isAlreadyInWishlist = wishlistBooks.some((b) => b.id === book.id);
+  if (isAlreadyInWishlist) {
+    return;
+  }
+
+  const prevPages = wishlistBooks.reduce((sum, b) => sum + (b.pages ?? 0), 0);
+  const nextPages = prevPages + (book.pages ?? 0);
+  const nextCount = wishlistBooks.length + 1;
+
+  if (
+    (prevPages < 1000 && nextPages >= 1000) ||
+    (prevPages < 2000 && nextPages >= 2000)
+  ) {
+    try {
+      const roast = await generateRoastFn({
+        data: {
+          bookTitle: book.title[locale],
+          event: "wishlist_milestone_pages",
+          locale,
+          totalPages: nextPages,
+          wishlistCount: nextCount,
+        },
+      });
+      showRoastToast(roast);
+    } catch {
+      // Fallback is handled inside generateRoastFn
+    }
+  }
+}
+
+export async function triggerCategorySwitchRoast({
+  categorySwitches,
+  genreFrom,
+  genreTo,
+  locale,
+}: {
+  categorySwitches: number;
+  genreFrom?: string | null;
+  genreTo?: string | null;
+  locale: Locale;
+}) {
+  try {
+    const roast = await generateRoastFn({
+      data: {
+        categorySwitches,
+        event: "category_switch_milestone",
+        genreFrom,
+        genreTo,
+        locale,
+      },
+    });
+    showRoastToast(roast);
+  } catch {
+    // Handled inside generateRoastFn
+  }
+}
+
+export async function triggerSearchRoast({
+  query,
+  searchCount,
+  locale,
+}: {
+  query: string;
+  searchCount: number;
+  locale: Locale;
+}) {
+  try {
+    const roast = await generateRoastFn({
+      data: {
+        event: "search_milestone",
+        locale,
+        query,
+        searchCount,
+      },
+    });
+    showRoastToast(roast);
+  } catch {
+    // Handled inside generateRoastFn
+  }
+}

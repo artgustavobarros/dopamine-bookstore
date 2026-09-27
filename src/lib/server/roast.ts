@@ -14,20 +14,29 @@ const roastInputSchema = z.object({
   authorCount: z.number().optional(),
   bookTitle: z.string().optional(),
   cartCount: z.number().optional(),
+  categorySwitches: z.number().optional(),
   event: z.enum([
     "cart_milestone_count",
     "cart_milestone_pages",
     "checkout_opened",
     "order_completed",
     "diagnosis",
+    "wishlist_milestone_pages",
+    "category_switch_milestone",
+    "search_milestone",
   ]),
   favoriteAuthor: z.string().nullable().optional(),
   favoriteGenre: z.string().nullable().optional(),
+  genreFrom: z.string().nullable().optional(),
+  genreTo: z.string().nullable().optional(),
   locale: z.enum(["pt", "en"]).default("pt"),
   paymentMethod: z.string().optional(),
   pretendSpend: z.number().optional(),
+  query: z.string().optional(),
   russianCount: z.number().optional(),
+  searchCount: z.number().optional(),
   totalPages: z.number().optional(),
+  wishlistCount: z.number().optional(),
 });
 
 function getSystemPrompt(isDiagnosis: boolean, locale: "pt" | "en") {
@@ -55,19 +64,19 @@ function getSystemPrompt(isDiagnosis: boolean, locale: "pt" | "en") {
   if (isEn) {
     return (
       "You are a stand-up comedy roast master at 'Depois Eu Leio' (Dopamine Bookstore). " +
-      "Deliver a quick, punchy, acidic roast joke targeting the user's book hoarding delusions (buying books they will never finish, dopamine rushes from cart clicks, pretending to be an intellectual). " +
+      "Deliver a quick, punchy, acidic roast joke targeting the user's book hoarding delusions (buying books they will never finish, dopamine rushes from cart clicks, endless wishlist graveyards, perpetual search paralysis, jumping across genres without choosing anything, pretending to be an intellectual). " +
       "Maximum 2 snappy sentences. " +
       'Respond STRICTLY with valid JSON in this format: {"tag": "[SOUND EFFECT]", "roast": "your punchline here"}. ' +
-      "The tag MUST be in uppercase inside brackets, like [ALERT!], [IDENTITY CRISIS], [DECORATION ONLY], [LAST CHANCE]. " +
+      "The tag MUST be in uppercase inside brackets, like [ALERT!], [IDENTITY CRISIS], [DECORATION ONLY], [LAST CHANCE], [WISHLIST GRAVEYARD], [GENRE TOURIST], [SEARCH PARALYSIS]. " +
       "Do NOT include markdown backticks."
     );
   }
 
   return (
     "Você é o mestre de cerimônias de um show de comédia e fritada (roast) literária na livraria 'Depois Eu Leio'. " +
-    "Faça uma piada ácida, afiada, irônica e hilária de no máximo 2 frases zombando do hábito do usuário de acumular livros que nunca vai ler (tsundoku, vício em dopamina de carrinho, fingir que lê calhamaço). " +
+    "Faça uma piada ácida, afiada, irônica e hilária de no máximo 2 frases zombando do hábito do usuário de acumular livros que nunca vai ler (tsundoku, vício em dopamina de carrinho, cemitério de listas de desejos, trocar de gênero sem decidir nada, buscas infinitas sem comprar, fingir que lê calhamaço). " +
     'Responda ESTRITAMENTE com um JSON válido no formato: {"tag": "[EFEITO DE SOM]", "roast": "sua piada ácida aqui"}. ' +
-    "A tag DEVE ser em caixa alta entre colchetes, estilo vinheta de roast (ex: [ALERTA!], [TERAPIA JÁ], [OBJETO DECORATIVO], [HERANÇA NÃO LIDA], [CRISE EXISTENCIAL]). " +
+    "A tag DEVE ser em caixa alta entre colchetes, estilo vinheta de roast (ex: [ALERTA!], [TERAPIA JÁ], [OBJETO DECORATIVO], [HERANÇA NÃO LIDA], [CRISE EXISTENCIAL], [CEMITÉRIO DE DESEJOS], [TURISTA LITERÁRIO], [BUSCA INFINITA]). " +
     "NÃO use crases de markdown nem texto fora do JSON."
   );
 }
@@ -94,6 +103,25 @@ function getOrderLifecycleMessage(data: RoastContext, isEn: boolean): string {
     : `O usuário confirmou o pedido fictício via ${data.paymentMethod || "cartão de mentirinha"} somando R$ ${data.pretendSpend?.toFixed(2) || "0.00"} e ${data.totalPages} páginas que ficarão na estante.`;
 }
 
+function getBrowsingMilestoneMessage(
+  data: RoastContext,
+  isEn: boolean
+): string {
+  if (data.event === "wishlist_milestone_pages") {
+    return isEn
+      ? `The user's wishlist just exceeded ${data.totalPages} total saved pages across ${data.wishlistCount || data.cartCount || 0} books. They are stockpiling books into their wishlist graveyard to pretend they will buy and read them later.`
+      : `A lista de desejos do usuário acabou de ultrapassar ${data.totalPages} páginas no total em ${data.wishlistCount || data.cartCount || 0} livros salvos. Um cemitério de boas intenções e calhamaços salvos para um 'depois' que nunca chega.`;
+  }
+  if (data.event === "category_switch_milestone") {
+    return isEn
+      ? `The user just switched categories/genres ${data.categorySwitches} times without picking a single book. Currently looking at "${data.genreTo || "another category"}" after leaving "${data.genreFrom || "previous category"}". Extreme literary indecision and commitment issues.`
+      : `O usuário acabou de trocar de categoria/gênero ${data.categorySwitches} vezes sem escolher nenhum livro. Agora olhando "${data.genreTo || "outra categoria"}" após sair de "${data.genreFrom || "categoria anterior"}". Indecisão crônica e turismo literário sem foco.`;
+  }
+  return isEn
+    ? `The user just ran their ${data.searchCount}th search query ("${data.query || "unknown"}"). Endless searching, zero reading. Severe search paralysis and procrastination.`
+    : `O usuário acabou de fazer sua ${data.searchCount}ª pesquisa no catálogo ("${data.query || "desconhecido"}"). Busca infinita, leitura zero. Paralisia de escolha e procrastinação pura.`;
+}
+
 function buildUserMessage(data: RoastContext): string {
   const isEn = data.locale === "en";
 
@@ -104,6 +132,10 @@ function buildUserMessage(data: RoastContext): string {
     case "checkout_opened":
     case "order_completed":
       return getOrderLifecycleMessage(data, isEn);
+    case "wishlist_milestone_pages":
+    case "category_switch_milestone":
+    case "search_milestone":
+      return getBrowsingMilestoneMessage(data, isEn);
     default:
       return isEn
         ? `Overall stats: ${data.cartCount || 0} books hoarded, ${data.totalPages || 0} pages accumulated, R$ ${data.pretendSpend?.toFixed(2) || "0.00"} fake spent. Favorite genre: "${data.favoriteGenre || "Literature"}", favorite author: "${data.favoriteAuthor || "Unknown"}".`
