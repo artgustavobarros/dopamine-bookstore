@@ -5,7 +5,6 @@ import {
   OctagonXIcon,
   TriangleAlertIcon,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 import { useRef } from "react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 import { gsap, useGSAP, withMotion } from "@/lib/motion";
@@ -25,9 +24,8 @@ function animateAddedToasts(
     .forEach(animateToast);
 }
 
-const Toaster = ({ ...props }: ToasterProps) => {
+const Toaster = ({ theme = "system", ...props }: ToasterProps) => {
   const host = useRef<HTMLDivElement>(null);
-  const { theme = "system" } = useTheme();
 
   useGSAP(
     (_context, contextSafe) =>

@@ -24,7 +24,7 @@ export function ActionButton({
   return (
     <Button
       className={cn(
-        "!font-bold h-auto min-h-11 rounded-none border-[3px] border-line px-5 py-2.5 whitespace-normal transition-[transform,box-shadow] duration-150 ease-out",
+        "!font-bold h-auto min-h-11 whitespace-normal rounded-none border-[3px] border-line px-5 py-2.5 transition-[transform,box-shadow] duration-150 ease-out",
         shadowTone === "red"
           ? "btn-auth-submit shadow-[4px_4px_0_oklch(63.7%_0.237_25.331)] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[6px_6px_0_oklch(63.7%_0.237_25.331)] active:translate-x-[3px] active:translate-y-[3px] active:shadow-[2px_2px_0_oklch(63.7%_0.237_25.331)]"
           : "btn-tactile shadow-[4px_4px_0_var(--line)] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[6px_6px_0_var(--line)] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none",

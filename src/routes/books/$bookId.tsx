@@ -28,8 +28,8 @@ import {
 import { bookQuery } from "@/lib/open-library";
 import {
   dispatchBookAdded,
-  handleToggleWishWithMilestones,
   dispatchReviewPosted,
+  handleToggleWishWithMilestones,
 } from "@/lib/roast-trigger";
 import {
   getCartBooks,
@@ -388,7 +388,7 @@ function BookReviewSection({
             const owned = useStore
               .getState()
               .orders.some((o) => o.items?.some((i) => i.id === book.id));
-            dispatchReviewPosted({ owned, locale });
+            dispatchReviewPosted({ locale, owned });
           })}
         >
           <div className="flex flex-wrap items-center justify-between gap-4">

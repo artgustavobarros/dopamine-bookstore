@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { calculateToastDuration } from "../src/lib/roast-toast";
 import {
   clearRoastSessionState,
   formatCurrencyByLocale,
@@ -6,11 +7,10 @@ import {
   getRoastSessionState,
   interpolateText,
   ROASTS,
-  selectRoastFromCatalog,
-  STINGS,
   type RoastEvent,
+  STINGS,
+  selectRoastFromCatalog,
 } from "../src/lib/roasts";
-import { calculateToastDuration } from "../src/lib/roast-toast";
 
 test.describe("Roast Manifestations Engine — Unit & Catalog Tests", () => {
   test.beforeEach(() => {
@@ -123,7 +123,12 @@ test.describe("Roast Manifestations Engine — Unit & Catalog Tests", () => {
       totalPages: 1225,
     };
 
-    const evaluated = selectRoastFromCatalog("book-added", hugeBookContext, "normal", "pt");
+    const evaluated = selectRoastFromCatalog(
+      "book-added",
+      hugeBookContext,
+      "normal",
+      "pt"
+    );
     expect(evaluated).not.toBeNull();
     expect(evaluated?.ruleId).toBe("huge-book");
     expect(evaluated?.msg.length).toBeGreaterThan(0);
@@ -131,7 +136,6 @@ test.describe("Roast Manifestations Engine — Unit & Catalog Tests", () => {
 
   test("Intensity Levels: educado suppresses stings and normal/impiedoso-only rules", () => {
     const context = {
-      ru: 3, // would match russians-3 in normal mode
       book: {
         author: "Fiódor Dostoiévski",
         genre: "Clássicos",
@@ -139,10 +143,16 @@ test.describe("Roast Manifestations Engine — Unit & Catalog Tests", () => {
         pages: 350,
         title: "Noites Brancas",
       },
+      ru: 3, // would match russians-3 in normal mode
     };
 
     // Under educado, russians-3 rule is excluded (only in ['normal', 'impiedoso'])
-    const educadoResult = selectRoastFromCatalog("book-added", context, "educado", "pt");
+    const educadoResult = selectRoastFromCatalog(
+      "book-added",
+      context,
+      "educado",
+      "pt"
+    );
     expect(educadoResult).not.toBeNull();
     expect(educadoResult?.ruleId).not.toBe("russians-3");
 
@@ -151,7 +161,12 @@ test.describe("Roast Manifestations Engine — Unit & Catalog Tests", () => {
     state.actions = 4;
     state.lastShownAt["book-added"] = 0;
 
-    const impiedosoResult = selectRoastFromCatalog("book-added", context, "impiedoso", "pt");
+    const impiedosoResult = selectRoastFromCatalog(
+      "book-added",
+      context,
+      "impiedoso",
+      "pt"
+    );
     expect(impiedosoResult).not.toBeNull();
     // Verify that the message length is still strictly <= 140 chars
     expect(impiedosoResult!.msg.length).toBeLessThanOrEqual(140);
@@ -159,18 +174,26 @@ test.describe("Roast Manifestations Engine — Unit & Catalog Tests", () => {
 
   test("Token Interpolation: formats numbers and currencies properly per locale", () => {
     const ctx = {
-      pages: 1024,
-      total: 119.9,
       hours: 26,
+      pages: 1024,
       title: "Crime e Castigo",
+      total: 119.9,
     };
 
     // PT formatting
-    const ptFormatted = interpolateText("{pages} p. por {total} ({hours})", ctx, "pt");
+    const ptFormatted = interpolateText(
+      "{pages} p. por {total} ({hours})",
+      ctx,
+      "pt"
+    );
     expect(ptFormatted).toBe("1.024 p. por R$ 119,90 (~26h)");
 
     // EN formatting
-    const enFormatted = interpolateText("{pages} p. for {total} ({hours})", ctx, "en");
+    const enFormatted = interpolateText(
+      "{pages} p. for {total} ({hours})",
+      ctx,
+      "en"
+    );
     expect(enFormatted).toBe("1,024 p. for $23.98 (~26h)");
 
     expect(formatNumberByLocale(1024, "pt")).toBe("1.024");
@@ -208,7 +231,9 @@ test.describe("Roast Manifestations Engine — Unit & Catalog Tests", () => {
 
   test("Dynamic Duration: scales duration by 40ms per character above 80 chars", () => {
     // 50 chars -> base 6000ms
-    const shortDuration = calculateToastDuration("Frase curta com menos de oitenta caracteres.");
+    const shortDuration = calculateToastDuration(
+      "Frase curta com menos de oitenta caracteres."
+    );
     expect(shortDuration).toBe(6000);
 
     // 100 chars (20 over 80) -> 6000 + 20 * 40 = 6800ms
@@ -221,7 +246,7 @@ test.describe("Roast Manifestations Engine — Unit & Catalog Tests", () => {
 
     // Extreme text caps at 12000ms
     const text300 = "a".repeat(300);
-    expect(calculateToastDuration(text300)).toBe(12000);
+    expect(calculateToastDuration(text300)).toBe(12_000);
   });
 });
 
@@ -233,7 +258,11 @@ test.describe("Roast Manifestations — E2E Browser & Interaction Tests", () => 
     await page.waitForLoadState("networkidle");
 
     // Click the first add to cart button
-    const firstAddButton = page.locator("article button:has-text('Colocar na sacola'), article button:has-text('Adicionar')").first();
+    const firstAddButton = page
+      .locator(
+        "article button:has-text('Colocar na sacola'), article button:has-text('Adicionar')"
+      )
+      .first();
     if (await firstAddButton.isVisible()) {
       await firstAddButton.click();
 

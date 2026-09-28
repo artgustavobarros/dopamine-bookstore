@@ -26,7 +26,9 @@ export interface RoastContext {
   filterValue?: string | null;
   genreFrom?: string | null;
   genreTo?: string | null;
+  hours?: number | string;
   locale: Locale;
+  orderCount?: number;
   paymentMethod?: string;
   pretendSpend?: number;
   query?: string;
@@ -213,20 +215,21 @@ function getDiagnosisFallback(ctx: RoastContext, isEn: boolean): RoastPayload {
   const pages = ctx.totalPages ?? 0;
   const spend = ctx.pretendSpend ?? 0;
   const genre = ctx.favoriteGenre ?? (isEn ? "General" : "Geral");
+  const books = ctx.cartCount ?? ctx.orderCount ?? 0;
 
   if (pages === 0) {
     return {
       roast: isEn
-        ? "Zero fictional purchases so far. Either an admirable display of ascetic self-discipline, or you're too intimidated to commit even to pretend books."
-        : "Nenhuma compra de mentira até agora. Ou você é um monge com autocontrole inabalável, ou tem medo de se comprometer até com livros imaginários.",
-      tag: isEn ? "[EMOTIONAL WITHDRAWAL]" : "[TRAVA EMOCIONAL]",
+        ? "Clinical Presentation: The subject has committed to zero fictional purchases so far.\n\nBehavioral Analysis: This suggests either an extreme display of ascetic self-discipline or, more likely, an acute fear of commitment even to purely imaginary literature.\n\nPrescription: Add at least three 800-page Russian classics to the cart immediately and close the tab to experience true modern dopamine."
+        : "Quadro Clínico: O sujeito realizou exatamente zero compras fictícias até o momento.\n\nAnálise Comportamental: Isso reflete ou um caso raro de autocontrole inabalável ou, mais provavelmente, uma trava emocional paralisante de quem tem medo de se comprometer até com livros imaginários.\n\nPrescrição Médica: Adicionar imediatamente três calhamaços russos de 800 páginas à sacola e fechar a aba do navegador para sentir a verdadeira dopamina moderna.",
+      tag: isEn ? "[CLINICAL REPORT]" : "[LAUDO PSIQUIÁTRICO]",
     };
   }
 
   return {
     roast: isEn
-      ? `Clinical prognosis: You hoarded ${pages.toLocaleString("en-US")} fictional pages and pretend-spent R$ ${spend.toFixed(2)}, heavily leaning into ${genre}. You don't want knowledge, you want intellectual anesthesia and an aesthetically pleasing bookshelf to intimidate guests.`
-      : `Prognóstico clínico: Você acumulou ${pages.toLocaleString("pt-BR")} páginas fictícias e 'gastou' R$ ${spend.toFixed(2)}, com forte obsessão por ${genre}. Seu diagnóstico não é amor pela literatura: é anestesia intelectual e vontade de impressionar visitas com uma estante intimidadora.`,
+      ? `Clinical Presentation: Patient exhibits chronic stage-4 Tsundoku, having accumulated ${books > 0 ? `${books} books and ` : ""}${pages.toLocaleString("en-US")} fictional pages with a pretend expenditure of R$ ${spend.toFixed(2)}, heavily gravitating towards ${genre}.\n\nBehavioral Analysis: The subject does not seek literary knowledge; they seek intellectual anesthesia and high-gravity paper trophies to intimidate guests into believing they are a Renaissance scholar who reads instead of endlessly scrolling social media.\n\nPrescription: Mandatory confiscation of all bookmarks. Daily treatment: stare silently at the unread pile for 20 minutes without checking phone notifications or buying specialty coffee.`
+      : `Quadro Clínico: Paciente apresenta quadro agudo de Tsundoku grau 4, tendo acumulado ${books > 0 ? `${books} obras e ` : ""}${pages.toLocaleString("pt-BR")} páginas fictícias, com 'investimento' de R$ ${spend.toFixed(2)} e obsessão desmedida por ${genre}.\n\nAnálise Comportamental: Não se trata de amor genuíno pela literatura, mas sim de uma busca desesperada por anestesia intelectual e troféus de papel para impressionar visitas na sala de estar, nutrindo a fantasia de sabedoria adquirida por osmose física.\n\nPrescrição Médica: Confisco cautelar de todos os marcadores de página. Tratamento de choque: 20 minutos diários contemplando em silêncio a pilha de livros fechados, sem direito a cafezinho gourmet nem postagens estéticas no Instagram.`,
     tag: isEn ? "[CLINICAL REPORT]" : "[LAUDO PSIQUIÁTRICO]",
   };
 }

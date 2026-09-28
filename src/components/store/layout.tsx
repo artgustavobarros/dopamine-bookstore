@@ -88,7 +88,7 @@ export function StoreLayout() {
             window.scrollTo({ behavior: "smooth", top: 400 });
           },
         });
-      }, 90000); // 90 seconds of inactivity
+      }, 90_000); // 90 seconds of inactivity
     };
 
     const activityEvents = [
@@ -135,9 +135,12 @@ export function StoreLayout() {
   );
 
   useEffect(() => {
-    Promise.resolve(useStore.persist.rehydrate()).finally(() =>
-      useStore.setState({ hydrated: true })
-    );
+    try {
+      useStore.persist.rehydrate();
+    } catch {
+      // Ignore storage error
+    }
+    useStore.setState({ hydrated: true });
   }, []);
 
   useEffect(() => {

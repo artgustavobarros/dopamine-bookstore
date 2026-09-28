@@ -271,9 +271,7 @@ export function calculateDeliveryState(
 
   // Can only skip forward during automated transit stages (0 to 5)
   const skipDeltaSeconds =
-    stageIndex < 6
-      ? Math.max(0.1, starts[stageIndex + 1] - elapsed + 0.05)
-      : 0;
+    stageIndex < 6 ? Math.max(0.1, starts[stageIndex + 1] - elapsed + 0.05) : 0;
 
   const steps: DeliveryTimelineStep[] = DELIVERY_STAGES.map((st, i) => {
     const isDone = isConfirmed ? true : i < stageIndex;

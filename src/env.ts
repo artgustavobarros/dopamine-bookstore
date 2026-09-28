@@ -13,13 +13,11 @@ export const env = createEnv({
   emptyStringAsUndefined: true,
   runtimeEnv: process.env,
   server: {
+    GEMINI_API_KEY: z.string().optional(),
+    GEMINI_MODEL: z.string().default("gemini-flash-lite-latest"),
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
-    OPENROUTER_API_KEY: z.string().optional(),
-    OPENROUTER_MODEL: z.string().default("openrouter/free"),
-    OPENROUTER_SITE_NAME: z.string().default("Depois Eu Leio"),
-    OPENROUTER_SITE_URL: z.string().default("http://localhost:3000"),
   },
   skipValidation: Boolean(process.env.CI || process.env.SKIP_ENV_VALIDATION),
 });

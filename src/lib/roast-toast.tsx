@@ -1,9 +1,10 @@
 import { toast } from "sonner";
-import { ComicToast, type ComicToastAction } from "@/components/ui/comic-toast";
+import { ComicToast } from "@/components/ui/comic-toast";
 import type { EvaluatedRoast } from "./roasts";
 
+export { ComicToast } from "@/components/ui/comic-toast";
+
 export interface ComicToastOptions {
-  action?: ComicToastAction | null;
   duration?: number;
   isAlert?: boolean;
   message: string;
@@ -17,13 +18,12 @@ export function calculateToastDuration(
 ): number {
   const extraChars = Math.max(0, message.length - 80);
   const extraMs = extraChars * 40;
-  return Math.min(12000, baseSeconds * 1000 + extraMs);
+  return Math.min(12_000, baseSeconds * 1000 + extraMs);
 }
 
 export function showComicToast({
   sfx,
   message,
-  action,
   isAlert = false,
   duration,
   onClose,
@@ -33,7 +33,6 @@ export function showComicToast({
   return toast.custom(
     (t) => (
       <ComicToast
-        action={action}
         id={t}
         isAlert={isAlert}
         message={message}
@@ -49,27 +48,15 @@ export function showComicToast({
 }
 
 export function showRoastToast(
-  roast:
-    | { roast: string; tag: string }
-    | EvaluatedRoast,
-  actionCallback?: () => void
+  roast: { roast: string; tag: string } | EvaluatedRoast,
+  _actionCallback?: () => void
 ) {
   if ("ruleId" in roast) {
     const isP1Error =
       roast.priority === 1 &&
       (roast.event === "card-declined" || roast.event === "pix-expired");
 
-    const action = roast.action
-      ? {
-          label: roast.action.label,
-          onClick: () => {
-            actionCallback?.();
-          },
-        }
-      : null;
-
     return showComicToast({
-      action,
       duration: calculateToastDuration(roast.msg),
       isAlert: isP1Error,
       message: roast.msg,
@@ -84,5 +71,3 @@ export function showRoastToast(
     sfx: roast.tag || "OPA!",
   });
 }
-
-export { ComicToast };

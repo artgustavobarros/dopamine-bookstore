@@ -321,6 +321,20 @@ export const useStore = create<AppState>()(
         set((state) => ({ cartIds: [], orders: [...state.orders, order] }));
         return order.id;
       },
+      confirmOrderReceipt(orderId) {
+        const nowIso = new Date().toISOString();
+        set((state) => ({
+          orders: state.orders.map((o) =>
+            o.id === orderId
+              ? {
+                  ...o,
+                  confirmedReceiptAt: nowIso,
+                  receiptConfirmed: true,
+                }
+              : o
+          ),
+        }));
+      },
       moveWishesToCart() {
         set((state) => ({
           cartIds: [...new Set([...state.cartIds, ...state.wishlistIds])],
@@ -536,20 +550,6 @@ export const useStore = create<AppState>()(
           return { success: true };
         }
         return { error: "not_found", success: false };
-      },
-      confirmOrderReceipt(orderId) {
-        const nowIso = new Date().toISOString();
-        set((state) => ({
-          orders: state.orders.map((o) =>
-            o.id === orderId
-              ? {
-                  ...o,
-                  confirmedReceiptAt: nowIso,
-                  receiptConfirmed: true,
-                }
-              : o
-          ),
-        }));
       },
       skipOrderStage(orderId, addSkewSeconds) {
         set((state) => ({

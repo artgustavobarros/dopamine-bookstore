@@ -139,27 +139,27 @@ export interface RoastSessionState {
 }
 
 export const STINGS: LocalizedString[] = [
-  { pt: "Estou anotando.", en: "I’m taking notes." },
-  { pt: "Isso vai para o seu perfil.", en: "This goes on your profile." },
-  { pt: "Nada pessoal.", en: "Nothing personal." },
+  { en: "I’m taking notes.", pt: "Estou anotando." },
+  { en: "This goes on your profile.", pt: "Isso vai para o seu perfil." },
+  { en: "Nothing personal.", pt: "Nada pessoal." },
   {
-    pt: "Seu eu futuro foi notificado.",
     en: "Your future self has been notified.",
+    pt: "Seu eu futuro foi notificado.",
   },
-  { pt: "Sua estante chora.", en: "Your bookshelf weeps." },
-  { pt: "A dopamina durou 4 segundos.", en: "The dopamine lasted 4 seconds." },
-  { pt: "A terapia seria mais barata.", en: "Therapy would be cheaper." },
+  { en: "Your bookshelf weeps.", pt: "Sua estante chora." },
+  { en: "The dopamine lasted 4 seconds.", pt: "A dopamina durou 4 segundos." },
+  { en: "Therapy would be cheaper.", pt: "A terapia seria mais barata." },
   {
-    pt: "Mais um para a pilha da vergonha.",
     en: "Another one for the pile of shame.",
+    pt: "Mais um para a pilha da vergonha.",
   },
   {
-    pt: "Você sabe que não vai ler, né?",
     en: "You know you won't read it, right?",
+    pt: "Você sabe que não vai ler, né?",
   },
   {
-    pt: "O marcador de página já desistiu.",
     en: "The bookmark has already surrendered.",
+    pt: "O marcador de página já desistiu.",
   },
 ];
 
@@ -216,7 +216,9 @@ export function interpolateText(
       case "code":
         return ctx.deliveryCode ?? "DEL-84920";
       case "eta":
-        return ctx.eta ?? (locale === "en" ? "3 business days" : "3 dias úteis");
+        return (
+          ctx.eta ?? (locale === "en" ? "3 business days" : "3 dias úteis")
+        );
       case "brand":
         return ctx.cardBrand ?? "Cartão";
       case "last4":
@@ -224,7 +226,7 @@ export function interpolateText(
       case "stage":
         return ctx.deliveryStage ?? "Em rota";
       default:
-        return ctx[key] !== undefined ? String(ctx[key]) : "";
+        return ctx[key] === undefined ? "" : String(ctx[key]);
     }
   });
 }
@@ -525,6 +527,71 @@ export const ROASTS: Record<RoastEvent, RoastEventDef> = {
     ],
   },
 
+  "card-declined": {
+    priority: 1,
+    rules: [
+      {
+        action: {
+          actionType: "retry",
+          label: { en: "Try again", pt: "Tentar de novo" },
+        },
+        id: "declined-rules",
+        levels: ["educado", "normal", "impiedoso"],
+        variants: [
+          {
+            msg: {
+              en: "Card ending {last4} declined. Even fake banks have standards.",
+              pt: "Cartão final {last4} recusado. Até banco imaginário tem limites.",
+            },
+            sfx: { en: "DECLINED!", pt: "RECUSADO!" },
+            w: 2,
+          },
+          {
+            msg: {
+              en: "Your imaginary limit ran out. Call your fictional banker.",
+              pt: "Seu limite fictício estourou. Reclame com seu gerente de mentira.",
+            },
+            sfx: { en: "NO CREDIT!", pt: "SEM LIMITE!" },
+            w: 1,
+          },
+          {
+            msg: {
+              en: "{brand} refused this transaction. Your bookshelf breathed in relief.",
+              pt: "Bandeira {brand} rejeitou a compra. Sua estante respirou aliviada.",
+            },
+            sfx: { en: "BLOCKED!", pt: "TRAVOU!" },
+            w: 1,
+          },
+          {
+            msg: {
+              en: "Transaction declined. Even the simulated server smelled tsundoku.",
+              pt: "Transação recusada. Até o algoritmo sentiu cheiro de tsundoku.",
+            },
+            sfx: { en: "DENIED!", pt: "NEGADO!" },
+            w: 1,
+          },
+          {
+            msg: {
+              en: "Payment failed. Fictional interest rates must have spooked them.",
+              pt: "Pagamento não passou. Os juros fictícios assustaram a operadora.",
+            },
+            sfx: { en: "BOOM!", pt: "CABRUM!" },
+            w: 1,
+          },
+          {
+            msg: {
+              en: "Card rejected. A polite digital intervention for your hoarding.",
+              pt: "Cartão recusado. Uma intervenção digital contra sua compulsão.",
+            },
+            sfx: { en: "REJECTED!", pt: "REJEITADO!" },
+            w: 1,
+          },
+        ],
+        when: () => true,
+      },
+    ],
+  },
+
   "cart-opened": {
     priority: 3,
     rules: [
@@ -574,6 +641,98 @@ export const ROASTS: Record<RoastEvent, RoastEventDef> = {
               pt: "{n} livros aguardando alguém com finais de semana livres.",
             },
             sfx: { en: "WEEKEND?", pt: "FÉRIAS?" },
+            w: 1,
+          },
+        ],
+        when: () => true,
+      },
+    ],
+  },
+
+  "cart-removed": {
+    priority: 3,
+    rules: [
+      {
+        action: {
+          actionType: "undo",
+          label: { en: "Undo", pt: "Desfazer" },
+        },
+        id: "cart-empty",
+        levels: ["normal", "impiedoso"],
+        variants: [
+          {
+            msg: {
+              en: "Cart is completely empty. A rare moment of total lucidity.",
+              pt: "Carrinho vazio. Um momento raro e efêmero de lucidez financeira.",
+            },
+            sfx: { en: "MIRACLE!", pt: "MILAGRE!" },
+            w: 2,
+          },
+          {
+            msg: {
+              en: "Clean slate. You avoided {pages} pages of pending guilt.",
+              pt: "Limpeza total. Você evitou {pages} páginas de culpa acumulada.",
+            },
+            sfx: { en: "CLEAN.", pt: "LIMPO." },
+            w: 1,
+          },
+          {
+            msg: {
+              en: "All books discarded. Your bookshelf gives a quiet sigh of relief.",
+              pt: "Tudo removido. A estante suspirou de alívio por hoje.",
+            },
+            sfx: { en: "RELIEF!", pt: "ALÍVIO!" },
+            w: 1,
+          },
+        ],
+        when: (c) => (c.cart?.length ?? 0) === 0,
+      },
+      {
+        action: {
+          actionType: "undo",
+          label: { en: "Undo", pt: "Desfazer" },
+        },
+        id: "generic",
+        levels: ["educado", "normal", "impiedoso"],
+        variants: [
+          {
+            msg: {
+              en: "Removed. The lingering guilt, however, remains untouched.",
+              pt: "Removido. A culpa residual, no entanto, segue intacta.",
+            },
+            sfx: { en: "TSK.", pt: "TSC." },
+            w: 2,
+          },
+          {
+            msg: {
+              en: "One less book. Still {pages} pages left in your pending pile.",
+              pt: "Um a menos. Ainda restam {pages} páginas na sua pilha pendente.",
+            },
+            sfx: { en: "ONE DOWN.", pt: "MENOS UM." },
+            w: 1,
+          },
+          {
+            msg: {
+              en: "{title} returned to the shelf. A sensible tactical retreat.",
+              pt: "{title} devolvido à estante. Um recuo tático compreensível.",
+            },
+            sfx: { en: "RETREAT.", pt: "RECUO." },
+            w: 1,
+          },
+          {
+            msg: {
+              en: "Book dismissed. Postponing your reading has never been easier.",
+              pt: "Livro dispensado. Adiar a leitura nunca foi tão prático.",
+            },
+            sfx: { en: "BYE!", pt: "TCHAU!" },
+            w: 1,
+          },
+          {
+            msg: {
+              en: "Saved {pages} pages of reading effort. Your couch thanks you.",
+              pt: "Economizou {pages} páginas de esforço. Seu sofá agradece.",
+            },
+            sfx: { en: "SAVED.", pt: "POUPADO." },
             w: 1,
           },
         ],
@@ -636,36 +795,145 @@ export const ROASTS: Record<RoastEvent, RoastEventDef> = {
     ],
   },
 
-  "login-required": {
+  delivered: {
     priority: 1,
     rules: [
       {
         action: null,
-        id: "login-gate",
+        id: "delivered-rule",
         levels: ["educado", "normal", "impiedoso"],
         variants: [
           {
             msg: {
-              en: "Paying zero dollars still requires an account. Identity please.",
-              pt: "Pagar nada ainda exige uma conta. Identifique-se primeiro.",
+              en: "Delivered! {pages} pages arrived safely to decorate your home.",
+              pt: "Entregue! {pages} páginas chegaram para decorar a sua estante.",
             },
-            sfx: { en: "HOLD IT!", pt: "ALTO LÁ!" },
+            sfx: { en: "KNOCK KNOCK!", pt: "TOC TOC!" },
             w: 2,
           },
           {
             msg: {
-              en: "We need someone’s name on this manifest of unread literature.",
-              pt: "Precisamos de um nome no manifesto desses livros não lidos.",
+              en: "Delivery confirmed. You can now place them spine-out and relax.",
+              pt: "Entrega confirmada. Já pode colocar na prateleira com a lombada visível.",
             },
-            sfx: { en: "WHO GOES?", pt: "QUEM É?" },
+            sfx: { en: "ARRIVED!", pt: "CHEGOU!" },
             w: 1,
           },
           {
             msg: {
-              en: "Can’t hoard pretend books anonymously. Log in to claim credit.",
-              pt: "Não dá para acumular livros no anonimato. Faça login.",
+              en: "Your parcel has arrived. Smell that fresh, unread paper scent.",
+              pt: "Pacote na porta. Sinta o cheiro do papel fresco que nunca será lido.",
             },
-            sfx: { en: "LOGIN!", pt: "CONECTE-SE!" },
+            sfx: { en: "DELIVERED!", pt: "ENTREGUE!" },
+            w: 1,
+          },
+        ],
+        when: () => true,
+      },
+    ],
+  },
+
+  "delivery-receipt-confirmed": {
+    priority: 1,
+    rules: [
+      {
+        action: null,
+        id: "delivery-receipt-confirmed-rule",
+        levels: ["educado", "normal", "impiedoso"],
+        variants: [
+          {
+            msg: {
+              en: "Receipt confirmed! Officially in your hands. Now the excuses officially begin.",
+              pt: "Recebimento confirmado! Oficialmente em mãos. Agora acabaram as desculpas.",
+            },
+            sfx: { en: "OFFICIAL!", pt: "CONFERIDO!" },
+            w: 2,
+          },
+          {
+            msg: {
+              en: "Package signed for. May your bedside table hold the weight of these ambitions.",
+              pt: "Pacote recebido. Que a sua mesinha de cabeceira suporte o peso dessas ambições.",
+            },
+            sfx: { en: "SIGNED!", pt: "ASSINADO!" },
+            w: 1,
+          },
+        ],
+        when: () => true,
+      },
+    ],
+  },
+
+  "delivery-stage": {
+    priority: 2,
+    rules: [
+      {
+        action: null,
+        id: "stage-change",
+        levels: ["educado", "normal", "impiedoso"],
+        variants: [
+          {
+            msg: {
+              en: "Stage updated: {stage}. Code {code} moving through the vortex.",
+              pt: "Etapa atualizada: {stage}. Código {code} viajando pelo vórtice.",
+            },
+            sfx: { en: "TRACKING!", pt: "RASTREIO!" },
+            w: 2,
+          },
+          {
+            msg: {
+              en: "Package status changed to {stage}. Estimated arrival: {eta}.",
+              pt: "Status mudou para {stage}. Previsão de chegada: {eta}.",
+            },
+            sfx: { en: "TRANSIT.", pt: "A CAMINHO." },
+            w: 1,
+          },
+          {
+            msg: {
+              en: "Your books are in {stage}. They don't know they won't be read.",
+              pt: "Seus livros estão em {stage}. Eles nem sabem que não serão lidos.",
+            },
+            sfx: { en: "ON ROAD.", pt: "NA ROTA." },
+            w: 1,
+          },
+        ],
+        when: () => true,
+      },
+    ],
+  },
+
+  idle: {
+    priority: 3,
+    rules: [
+      {
+        action: {
+          actionType: "catalog",
+          label: { en: "Browse books", pt: "Ver livros" },
+        },
+        id: "idle-catalog",
+        levels: ["educado", "normal", "impiedoso"],
+        variants: [
+          {
+            msg: {
+              en: "90 seconds of inactivity. Are you contemplating {title} or napping?",
+              pt: "90 segundos sem tocar na tela. Admirando {title} ou cochilando?",
+            },
+            sfx: { en: "WAKE UP!", pt: "ACORDA!" },
+            w: 2,
+          },
+          {
+            msg: {
+              en: "Still here? The books won't read themselves while you stare.",
+              pt: "Ainda aí? Os livros não vão se ler sozinhos enquanto você encara.",
+            },
+            sfx: { en: "HELLO?", pt: "ALÔ?" },
+            w: 1,
+          },
+          {
+            msg: {
+              en: "Procrastination detected. Staring at book covers burns zero calories.",
+              pt: "Procrastinação detectada. Olhar para a capa não queima calorias.",
+            },
+            sfx: { en: "IDLE!", pt: "PARADO!" },
             w: 1,
           },
         ],
@@ -712,202 +980,36 @@ export const ROASTS: Record<RoastEvent, RoastEventDef> = {
     ],
   },
 
-  "wish-added": {
-    priority: 3,
+  "login-required": {
+    priority: 1,
     rules: [
       {
         action: null,
-        id: "wish-incart",
+        id: "login-gate",
         levels: ["educado", "normal", "impiedoso"],
         variants: [
           {
             msg: {
-              en: "Already in your cart and now in your wishlist. Double safety net.",
-              pt: "Já está no carrinho e agora na lista de desejos. Medo de perder?",
+              en: "Paying zero dollars still requires an account. Identity please.",
+              pt: "Pagar nada ainda exige uma conta. Identifique-se primeiro.",
             },
-            sfx: { en: "HUH?", pt: "HEIN?" },
+            sfx: { en: "HOLD IT!", pt: "ALTO LÁ!" },
             w: 2,
           },
           {
             msg: {
-              en: "In the cart to buy, in wishlist to ignore. Perfect harmony.",
-              pt: "No carrinho para fingir que compra, na lista para esquecer.",
+              en: "We need someone’s name on this manifest of unread literature.",
+              pt: "Precisamos de um nome no manifesto desses livros não lidos.",
             },
-            sfx: { en: "PARADOX.", pt: "PARADOXO." },
+            sfx: { en: "WHO GOES?", pt: "QUEM É?" },
             w: 1,
           },
           {
             msg: {
-              en: "Saving the same book in both places won’t read it for you.",
-              pt: "Salvar nos dois lugares não vai abrir o livro por telepatia.",
+              en: "Can’t hoard pretend books anonymously. Log in to claim credit.",
+              pt: "Não dá para acumular livros no anonimato. Faça login.",
             },
-            sfx: { en: "REALLY?", pt: "SÉRIO?" },
-            w: 1,
-          },
-        ],
-        when: (c) => Boolean(c.inCart),
-      },
-      {
-        action: null,
-        id: "wish-graveyard",
-        levels: ["educado", "normal", "impiedoso"],
-        variants: [
-          {
-            msg: {
-              en: "{n} wishes saved. Wishing is remarkably cheaper than reading.",
-              pt: "{n} desejos salvos. Desejar continua mais barato do que ler.",
-            },
-            sfx: { en: "EASY.", pt: "CALMA." },
-            w: 2,
-          },
-          {
-            msg: {
-              en: "Your wishlist is an archaeological site of unfulfilled intentions.",
-              pt: "Sua lista de desejos é um sítio arqueológico de promessas.",
-            },
-            sfx: { en: "GRAVEYARD.", pt: "CEMITÉRIO." },
-            w: 1,
-          },
-          {
-            msg: {
-              en: "Adding to wishlist: digital preservation of abandoned dreams.",
-              pt: "Adicionado aos desejos: preservação digital de planos adiados.",
-            },
-            sfx: { en: "PRESERVED.", pt: "GUARDADO." },
-            w: 1,
-          },
-        ],
-        when: (c) => (c.wish ?? 0) >= 5,
-      },
-      {
-        action: null,
-        id: "generic",
-        levels: ["educado", "normal", "impiedoso"],
-        variants: [
-          {
-            msg: {
-              en: "Saved for later. We all know where 'later' ends up.",
-              pt: "Guardado para depois. Todos sabemos onde o 'depois' vai parar.",
-            },
-            sfx: { en: "SAVED.", pt: "GUARDADO." },
-            w: 2,
-          },
-          {
-            msg: {
-              en: "One more saved item to look at when you want to feel cultured.",
-              pt: "Mais um livro salvo para você olhar e fingir intelectualidade.",
-            },
-            sfx: { en: "WISHED.", pt: "DESEJADO." },
-            w: 1,
-          },
-          {
-            msg: {
-              en: "Added to wishlist. Safe from being accidentally read.",
-              pt: "Na lista de desejos. A salvo do perigo de ser lido por engano.",
-            },
-            sfx: { en: "SAFE.", pt: "SEGURO." },
-            w: 1,
-          },
-          {
-            msg: {
-              en: "Wish recorded. Your imaginary library expands quietly.",
-              pt: "Desejo anotado. Sua biblioteca imaginária cresce em silêncio.",
-            },
-            sfx: { en: "WISHLIST.", pt: "DESEJO." },
-            w: 1,
-          },
-          {
-            msg: {
-              en: "A neat little bookmark in the digital graveyard of books.",
-              pt: "Um simpático marcador no cemitério digital de boas intenções.",
-            },
-            sfx: { en: "LATER.", pt: "DEPOIS." },
-            w: 1,
-          },
-        ],
-        when: () => true,
-      },
-    ],
-  },
-
-  "review-posted": {
-    priority: 2,
-    rules: [
-      {
-        action: null,
-        id: "review-unbought",
-        levels: ["normal", "impiedoso"],
-        variants: [
-          {
-            msg: {
-              en: "A review from someone who never bought the book. Pure courage.",
-              pt: "Uma resenha de quem nunca comprou o livro. Pura coragem crítica.",
-            },
-            sfx: { en: "CRITIC!", pt: "CRÍTICO!" },
-            w: 2,
-          },
-          {
-            msg: {
-              en: "Reviewing unpurchased literature. The peak of opinionated internet.",
-              pt: "Opinar sobre livro não comprado: o ápice da internet contemporânea.",
-            },
-            sfx: { en: "BOLD!", pt: "AUDAZ!" },
-            w: 1,
-          },
-          {
-            msg: {
-              en: "Five stars based on cover typography alone. We respect the hustle.",
-              pt: "Cinco estrelas avaliando só a fonte da capa. Respeitamos a ousadia.",
-            },
-            sfx: { en: "EXPERT!", pt: "PERITO!" },
-            w: 1,
-          },
-        ],
-        when: (c) => !c.owned,
-      },
-      {
-        action: null,
-        id: "generic",
-        levels: ["educado", "normal", "impiedoso"],
-        variants: [
-          {
-            msg: {
-              en: "Review posted before the spine even cracked. Well done.",
-              pt: "Resenha publicada antes de abrir a orelha do livro. Parabéns.",
-            },
-            sfx: { en: "POSTED.", pt: "PUBLICADO." },
-            w: 2,
-          },
-          {
-            msg: {
-              en: "Your literary verdict has been etched into our hall of opinions.",
-              pt: "Seu veredito literário foi gravado no mural das opiniões sinceras.",
-            },
-            sfx: { en: "STAMPED.", pt: "CARIMBADO." },
-            w: 1,
-          },
-          {
-            msg: {
-              en: "Review submitted. Other unread book hoarders appreciate your service.",
-              pt: "Comentário enviado. Outros acumuladores de livros agradecem.",
-            },
-            sfx: { en: "APPLAUSE!", pt: "PALMAS!" },
-            w: 1,
-          },
-          {
-            msg: {
-              en: "A review based on first impressions and solid aesthetic judgment.",
-              pt: "Uma resenha guiada pela beleza da capa e intuição pura.",
-            },
-            sfx: { en: "INSIGHT.", pt: "VISÃO." },
-            w: 1,
-          },
-          {
-            msg: {
-              en: "Your review is live. Next step: actually finishing chapter one.",
-              pt: "Resenha no ar. Próximo passo: terminar o capítulo um.",
-            },
-            sfx: { en: "NOTED.", pt: "REGISTRADO." },
+            sfx: { en: "LOGIN!", pt: "CONECTE-SE!" },
             w: 1,
           },
         ],
@@ -987,71 +1089,6 @@ export const ROASTS: Record<RoastEvent, RoastEventDef> = {
               pt: "QR Code venceu. Até dinheiro fictício exige um mínimo de agilidade.",
             },
             sfx: { en: "EXPIRED.", pt: "ACABOU." },
-            w: 1,
-          },
-        ],
-        when: () => true,
-      },
-    ],
-  },
-
-  "card-declined": {
-    priority: 1,
-    rules: [
-      {
-        action: {
-          actionType: "retry",
-          label: { en: "Try again", pt: "Tentar de novo" },
-        },
-        id: "declined-rules",
-        levels: ["educado", "normal", "impiedoso"],
-        variants: [
-          {
-            msg: {
-              en: "Card ending {last4} declined. Even fake banks have standards.",
-              pt: "Cartão final {last4} recusado. Até banco imaginário tem limites.",
-            },
-            sfx: { en: "DECLINED!", pt: "RECUSADO!" },
-            w: 2,
-          },
-          {
-            msg: {
-              en: "Your imaginary limit ran out. Call your fictional banker.",
-              pt: "Seu limite fictício estourou. Reclame com seu gerente de mentira.",
-            },
-            sfx: { en: "NO CREDIT!", pt: "SEM LIMITE!" },
-            w: 1,
-          },
-          {
-            msg: {
-              en: "{brand} refused this transaction. Your bookshelf breathed in relief.",
-              pt: "Bandeira {brand} rejeitou a compra. Sua estante respirou aliviada.",
-            },
-            sfx: { en: "BLOCKED!", pt: "TRAVOU!" },
-            w: 1,
-          },
-          {
-            msg: {
-              en: "Transaction declined. Even the simulated server smelled tsundoku.",
-              pt: "Transação recusada. Até o algoritmo sentiu cheiro de tsundoku.",
-            },
-            sfx: { en: "DENIED!", pt: "NEGADO!" },
-            w: 1,
-          },
-          {
-            msg: {
-              en: "Payment failed. Fictional interest rates must have spooked them.",
-              pt: "Pagamento não passou. Os juros fictícios assustaram a operadora.",
-            },
-            sfx: { en: "BOOM!", pt: "CABRUM!" },
-            w: 1,
-          },
-          {
-            msg: {
-              en: "Card rejected. A polite digital intervention for your hoarding.",
-              pt: "Cartão recusado. Uma intervenção digital contra sua compulsão.",
-            },
-            sfx: { en: "REJECTED!", pt: "REJEITADO!" },
             w: 1,
           },
         ],
@@ -1178,237 +1215,202 @@ export const ROASTS: Record<RoastEvent, RoastEventDef> = {
     ],
   },
 
-  "delivery-stage": {
+  "review-posted": {
     priority: 2,
     rules: [
       {
         action: null,
-        id: "stage-change",
-        levels: ["educado", "normal", "impiedoso"],
-        variants: [
-          {
-            msg: {
-              en: "Stage updated: {stage}. Code {code} moving through the vortex.",
-              pt: "Etapa atualizada: {stage}. Código {code} viajando pelo vórtice.",
-            },
-            sfx: { en: "TRACKING!", pt: "RASTREIO!" },
-            w: 2,
-          },
-          {
-            msg: {
-              en: "Package status changed to {stage}. Estimated arrival: {eta}.",
-              pt: "Status mudou para {stage}. Previsão de chegada: {eta}.",
-            },
-            sfx: { en: "TRANSIT.", pt: "A CAMINHO." },
-            w: 1,
-          },
-          {
-            msg: {
-              en: "Your books are in {stage}. They don't know they won't be read.",
-              pt: "Seus livros estão em {stage}. Eles nem sabem que não serão lidos.",
-            },
-            sfx: { en: "ON ROAD.", pt: "NA ROTA." },
-            w: 1,
-          },
-        ],
-        when: () => true,
-      },
-    ],
-  },
-
-  delivered: {
-    priority: 1,
-    rules: [
-      {
-        action: null,
-        id: "delivered-rule",
-        levels: ["educado", "normal", "impiedoso"],
-        variants: [
-          {
-            msg: {
-              en: "Delivered! {pages} pages arrived safely to decorate your home.",
-              pt: "Entregue! {pages} páginas chegaram para decorar a sua estante.",
-            },
-            sfx: { en: "KNOCK KNOCK!", pt: "TOC TOC!" },
-            w: 2,
-          },
-          {
-            msg: {
-              en: "Delivery confirmed. You can now place them spine-out and relax.",
-              pt: "Entrega confirmada. Já pode colocar na prateleira com a lombada visível.",
-            },
-            sfx: { en: "ARRIVED!", pt: "CHEGOU!" },
-            w: 1,
-          },
-          {
-            msg: {
-              en: "Your parcel has arrived. Smell that fresh, unread paper scent.",
-              pt: "Pacote na porta. Sinta o cheiro do papel fresco que nunca será lido.",
-            },
-            sfx: { en: "DELIVERED!", pt: "ENTREGUE!" },
-            w: 1,
-          },
-        ],
-        when: () => true,
-      },
-    ],
-  },
-
-  "delivery-receipt-confirmed": {
-    priority: 1,
-    rules: [
-      {
-        action: null,
-        id: "delivery-receipt-confirmed-rule",
-        levels: ["educado", "normal", "impiedoso"],
-        variants: [
-          {
-            msg: {
-              en: "Receipt confirmed! Officially in your hands. Now the excuses officially begin.",
-              pt: "Recebimento confirmado! Oficialmente em mãos. Agora acabaram as desculpas.",
-            },
-            sfx: { en: "OFFICIAL!", pt: "CONFERIDO!" },
-            w: 2,
-          },
-          {
-            msg: {
-              en: "Package signed for. May your bedside table hold the weight of these ambitions.",
-              pt: "Pacote recebido. Que a sua mesinha de cabeceira suporte o peso dessas ambições.",
-            },
-            sfx: { en: "SIGNED!", pt: "ASSINADO!" },
-            w: 1,
-          },
-        ],
-        when: () => true,
-      },
-    ],
-  },
-
-  idle: {
-    priority: 3,
-    rules: [
-      {
-        action: {
-          actionType: "catalog",
-          label: { en: "Browse books", pt: "Ver livros" },
-        },
-        id: "idle-catalog",
-        levels: ["educado", "normal", "impiedoso"],
-        variants: [
-          {
-            msg: {
-              en: "90 seconds of inactivity. Are you contemplating {title} or napping?",
-              pt: "90 segundos sem tocar na tela. Admirando {title} ou cochilando?",
-            },
-            sfx: { en: "WAKE UP!", pt: "ACORDA!" },
-            w: 2,
-          },
-          {
-            msg: {
-              en: "Still here? The books won't read themselves while you stare.",
-              pt: "Ainda aí? Os livros não vão se ler sozinhos enquanto você encara.",
-            },
-            sfx: { en: "HELLO?", pt: "ALÔ?" },
-            w: 1,
-          },
-          {
-            msg: {
-              en: "Procrastination detected. Staring at book covers burns zero calories.",
-              pt: "Procrastinação detectada. Olhar para a capa não queima calorias.",
-            },
-            sfx: { en: "IDLE!", pt: "PARADO!" },
-            w: 1,
-          },
-        ],
-        when: () => true,
-      },
-    ],
-  },
-
-  "cart-removed": {
-    priority: 3,
-    rules: [
-      {
-        action: {
-          actionType: "undo",
-          label: { en: "Undo", pt: "Desfazer" },
-        },
-        id: "cart-empty",
+        id: "review-unbought",
         levels: ["normal", "impiedoso"],
         variants: [
           {
             msg: {
-              en: "Cart is completely empty. A rare moment of total lucidity.",
-              pt: "Carrinho vazio. Um momento raro e efêmero de lucidez financeira.",
+              en: "A review from someone who never bought the book. Pure courage.",
+              pt: "Uma resenha de quem nunca comprou o livro. Pura coragem crítica.",
             },
-            sfx: { en: "MIRACLE!", pt: "MILAGRE!" },
+            sfx: { en: "CRITIC!", pt: "CRÍTICO!" },
             w: 2,
           },
           {
             msg: {
-              en: "Clean slate. You avoided {pages} pages of pending guilt.",
-              pt: "Limpeza total. Você evitou {pages} páginas de culpa acumulada.",
+              en: "Reviewing unpurchased literature. The peak of opinionated internet.",
+              pt: "Opinar sobre livro não comprado: o ápice da internet contemporânea.",
             },
-            sfx: { en: "CLEAN.", pt: "LIMPO." },
+            sfx: { en: "BOLD!", pt: "AUDAZ!" },
             w: 1,
           },
           {
             msg: {
-              en: "All books discarded. Your bookshelf gives a quiet sigh of relief.",
-              pt: "Tudo removido. A estante suspirou de alívio por hoje.",
+              en: "Five stars based on cover typography alone. We respect the hustle.",
+              pt: "Cinco estrelas avaliando só a fonte da capa. Respeitamos a ousadia.",
             },
-            sfx: { en: "RELIEF!", pt: "ALÍVIO!" },
+            sfx: { en: "EXPERT!", pt: "PERITO!" },
             w: 1,
           },
         ],
-        when: (c) => (c.cart?.length ?? 0) === 0,
+        when: (c) => !c.owned,
       },
       {
-        action: {
-          actionType: "undo",
-          label: { en: "Undo", pt: "Desfazer" },
-        },
+        action: null,
         id: "generic",
         levels: ["educado", "normal", "impiedoso"],
         variants: [
           {
             msg: {
-              en: "Removed. The lingering guilt, however, remains untouched.",
-              pt: "Removido. A culpa residual, no entanto, segue intacta.",
+              en: "Review posted before the spine even cracked. Well done.",
+              pt: "Resenha publicada antes de abrir a orelha do livro. Parabéns.",
             },
-            sfx: { en: "TSK.", pt: "TSC." },
+            sfx: { en: "POSTED.", pt: "PUBLICADO." },
             w: 2,
           },
           {
             msg: {
-              en: "One less book. Still {pages} pages left in your pending pile.",
-              pt: "Um a menos. Ainda restam {pages} páginas na sua pilha pendente.",
+              en: "Your literary verdict has been etched into our hall of opinions.",
+              pt: "Seu veredito literário foi gravado no mural das opiniões sinceras.",
             },
-            sfx: { en: "ONE DOWN.", pt: "MENOS UM." },
+            sfx: { en: "STAMPED.", pt: "CARIMBADO." },
             w: 1,
           },
           {
             msg: {
-              en: "{title} returned to the shelf. A sensible tactical retreat.",
-              pt: "{title} devolvido à estante. Um recuo tático compreensível.",
+              en: "Review submitted. Other unread book hoarders appreciate your service.",
+              pt: "Comentário enviado. Outros acumuladores de livros agradecem.",
             },
-            sfx: { en: "RETREAT.", pt: "RECUO." },
+            sfx: { en: "APPLAUSE!", pt: "PALMAS!" },
             w: 1,
           },
           {
             msg: {
-              en: "Book dismissed. Postponing your reading has never been easier.",
-              pt: "Livro dispensado. Adiar a leitura nunca foi tão prático.",
+              en: "A review based on first impressions and solid aesthetic judgment.",
+              pt: "Uma resenha guiada pela beleza da capa e intuição pura.",
             },
-            sfx: { en: "BYE!", pt: "TCHAU!" },
+            sfx: { en: "INSIGHT.", pt: "VISÃO." },
             w: 1,
           },
           {
             msg: {
-              en: "Saved {pages} pages of reading effort. Your couch thanks you.",
-              pt: "Economizou {pages} páginas de esforço. Seu sofá agradece.",
+              en: "Your review is live. Next step: actually finishing chapter one.",
+              pt: "Resenha no ar. Próximo passo: terminar o capítulo um.",
             },
-            sfx: { en: "SAVED.", pt: "POUPADO." },
+            sfx: { en: "NOTED.", pt: "REGISTRADO." },
+            w: 1,
+          },
+        ],
+        when: () => true,
+      },
+    ],
+  },
+
+  "wish-added": {
+    priority: 3,
+    rules: [
+      {
+        action: null,
+        id: "wish-incart",
+        levels: ["educado", "normal", "impiedoso"],
+        variants: [
+          {
+            msg: {
+              en: "Already in your cart and now in your wishlist. Double safety net.",
+              pt: "Já está no carrinho e agora na lista de desejos. Medo de perder?",
+            },
+            sfx: { en: "HUH?", pt: "HEIN?" },
+            w: 2,
+          },
+          {
+            msg: {
+              en: "In the cart to buy, in wishlist to ignore. Perfect harmony.",
+              pt: "No carrinho para fingir que compra, na lista para esquecer.",
+            },
+            sfx: { en: "PARADOX.", pt: "PARADOXO." },
+            w: 1,
+          },
+          {
+            msg: {
+              en: "Saving the same book in both places won’t read it for you.",
+              pt: "Salvar nos dois lugares não vai abrir o livro por telepatia.",
+            },
+            sfx: { en: "REALLY?", pt: "SÉRIO?" },
+            w: 1,
+          },
+        ],
+        when: (c) => Boolean(c.inCart),
+      },
+      {
+        action: null,
+        id: "wish-graveyard",
+        levels: ["educado", "normal", "impiedoso"],
+        variants: [
+          {
+            msg: {
+              en: "{n} wishes saved. Wishing is remarkably cheaper than reading.",
+              pt: "{n} desejos salvos. Desejar continua mais barato do que ler.",
+            },
+            sfx: { en: "EASY.", pt: "CALMA." },
+            w: 2,
+          },
+          {
+            msg: {
+              en: "Your wishlist is an archaeological site of unfulfilled intentions.",
+              pt: "Sua lista de desejos é um sítio arqueológico de promessas.",
+            },
+            sfx: { en: "GRAVEYARD.", pt: "CEMITÉRIO." },
+            w: 1,
+          },
+          {
+            msg: {
+              en: "Adding to wishlist: digital preservation of abandoned dreams.",
+              pt: "Adicionado aos desejos: preservação digital de planos adiados.",
+            },
+            sfx: { en: "PRESERVED.", pt: "GUARDADO." },
+            w: 1,
+          },
+        ],
+        when: (c) => (c.wish ?? 0) >= 5,
+      },
+      {
+        action: null,
+        id: "generic",
+        levels: ["educado", "normal", "impiedoso"],
+        variants: [
+          {
+            msg: {
+              en: "Saved for later. We all know where 'later' ends up.",
+              pt: "Guardado para depois. Todos sabemos onde o 'depois' vai parar.",
+            },
+            sfx: { en: "SAVED.", pt: "GUARDADO." },
+            w: 2,
+          },
+          {
+            msg: {
+              en: "One more saved item to look at when you want to feel cultured.",
+              pt: "Mais um livro salvo para você olhar e fingir intelectualidade.",
+            },
+            sfx: { en: "WISHED.", pt: "DESEJADO." },
+            w: 1,
+          },
+          {
+            msg: {
+              en: "Added to wishlist. Safe from being accidentally read.",
+              pt: "Na lista de desejos. A salvo do perigo de ser lido por engano.",
+            },
+            sfx: { en: "SAFE.", pt: "SEGURO." },
+            w: 1,
+          },
+          {
+            msg: {
+              en: "Wish recorded. Your imaginary library expands quietly.",
+              pt: "Desejo anotado. Sua biblioteca imaginária cresce em silêncio.",
+            },
+            sfx: { en: "WISHLIST.", pt: "DESEJO." },
+            w: 1,
+          },
+          {
+            msg: {
+              en: "A neat little bookmark in the digital graveyard of books.",
+              pt: "Um simpático marcador no cemitério digital de boas intenções.",
+            },
+            sfx: { en: "LATER.", pt: "DEPOIS." },
             w: 1,
           },
         ],
@@ -1438,7 +1440,9 @@ export function getRoastSessionState(): RoastSessionState {
   }
   try {
     const raw = window.sessionStorage.getItem(SESSION_KEY);
-    if (!raw) return inMemoryState;
+    if (!raw) {
+      return inMemoryState;
+    }
     const parsed = JSON.parse(raw);
     return {
       actions: parsed.actions ?? 0,
@@ -1489,11 +1493,17 @@ export function shouldThrottleEvent(
   state: RoastSessionState,
   now = Date.now()
 ): boolean {
-  if (priority === 1) return false;
+  if (priority === 1) {
+    return false;
+  }
   const lastTime = state.lastShownAt[event] ?? 0;
   const elapsed = now - lastTime;
-  if (priority === 2 && elapsed < 4000) return true;
-  if (priority === 3 && elapsed < 10000) return true;
+  if (priority === 2 && elapsed < 4000) {
+    return true;
+  }
+  if (priority === 3 && elapsed < 10_000) {
+    return true;
+  }
   return false;
 }
 
@@ -1504,7 +1514,9 @@ export function selectRoastFromCatalog(
   locale: Locale = "pt"
 ): EvaluatedRoast | null {
   const eventDef = ROASTS[event];
-  if (!eventDef) return null;
+  if (!eventDef) {
+    return null;
+  }
 
   const state = getRoastSessionState();
   const now = Date.now();
@@ -1518,7 +1530,9 @@ export function selectRoastFromCatalog(
   const matchingRules = eventDef.rules.filter(
     (r) => r.levels.includes(level) && r.when(ctx)
   );
-  if (!matchingRules.length) return null;
+  if (!matchingRules.length) {
+    return null;
+  }
 
   // 2. Select first matching rule, skipping last used rule for this event if alternatives exist
   const lastRuleId = state.lastRuleByEvent[event];
@@ -1537,10 +1551,7 @@ export function selectRoastFromCatalog(
   const availableVariantsWithIndices = selectedRule.variants
     .map((v, idx) => ({ idx, v }))
     .filter(({ idx }) => {
-      if (
-        selectedRule.variants.length > 2 &&
-        recentForThisRule.includes(idx)
-      ) {
+      if (selectedRule.variants.length > 2 && recentForThisRule.includes(idx)) {
         return false;
       }
       const variantKey = `${event}:${ruleId}:${idx}`;
@@ -1564,11 +1575,11 @@ export function selectRoastFromCatalog(
   }
 
   // 4. Interpolate text
-  let rawMsg = chosen.v.msg[locale] || chosen.v.msg.pt;
-  let rawSfx = chosen.v.sfx[locale] || chosen.v.sfx.pt;
+  const rawMsg = chosen.v.msg[locale] || chosen.v.msg.pt;
+  const rawSfx = chosen.v.sfx[locale] || chosen.v.sfx.pt;
 
   let msg = interpolateText(rawMsg, ctx, locale);
-  let sfx = rawSfx.toUpperCase().trim();
+  const sfx = rawSfx.toUpperCase().trim();
 
   // 5. If ruthless level and actions > 3, append sting without repeating previous
   const nextActions = state.actions + 1;

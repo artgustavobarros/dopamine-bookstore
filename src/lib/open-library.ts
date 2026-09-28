@@ -1,5 +1,4 @@
 import { queryOptions } from "@tanstack/react-query";
-import axios from "axios";
 import { z } from "zod";
 import {
   type Book,
@@ -9,10 +8,8 @@ import {
   normalize,
 } from "./catalog";
 
-const api = axios.create({
-  baseURL: "https://openlibrary.org",
-  timeout: 12_000,
-});
+const OPEN_LIBRARY_BASE = "https://openlibrary.org";
+const TIMEOUT_MS = 12_000;
 const editionSchema = z.object({
   cover_i: z.number().optional(),
   key: z.string(),
@@ -133,11 +130,32 @@ async function search(
   limit = 48
 ) {
   await waitForSearchSlot(signal);
-  const response = await api.get<unknown>("/search.json", {
-    params: { fields, lang: locale, limit, q, sort: "readinglog" },
-    signal,
+  const searchUrl = new URL("/search.json", OPEN_LIBRARY_BASE);
+  searchUrl.searchParams.set("fields", fields);
+  searchUrl.searchParams.set("lang", locale);
+  searchUrl.searchParams.set("limit", String(limit));
+  searchUrl.searchParams.set("q", q);
+  searchUrl.searchParams.set("sort", "readinglog");
+
+  const timeoutSignal = AbortSignal.timeout(TIMEOUT_MS);
+  const effectiveSignal = signal
+    ? typeof AbortSignal.any === "function"
+      ? AbortSignal.any([signal, timeoutSignal])
+      : signal
+    : timeoutSignal;
+
+  const response = await fetch(searchUrl.toString(), {
+    signal: effectiveSignal,
   });
-  return searchSchema.parse(response.data).docs;
+
+  if (!response.ok) {
+    throw new Error(
+      `Open Library request failed with status ${response.status}`
+    );
+  }
+
+  const data = await response.json();
+  return searchSchema.parse(data).docs;
 }
 
 export async function fetchCatalog(

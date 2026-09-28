@@ -10,10 +10,7 @@ import {
 } from "@/lib/catalog";
 import { t } from "@/lib/i18n";
 import { useInsertedPanelMotion, useRouteEntrance } from "@/lib/motion";
-import {
-  dispatchBookRemoved,
-  dispatchCartOpened,
-} from "@/lib/roast-trigger";
+import { dispatchBookRemoved, dispatchCartOpened } from "@/lib/roast-trigger";
 import { getCartBooks, getCartTotals, useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -129,7 +126,9 @@ function CartPage() {
 
   const handleRemove = (id: string) => {
     const bookToRemove = selected.find((b) => b.id === id);
-    if (!bookToRemove) return;
+    if (!bookToRemove) {
+      return;
+    }
     const remaining = selected.filter((b) => b.id !== id);
     remove(id);
     dispatchBookRemoved({

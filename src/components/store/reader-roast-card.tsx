@@ -77,16 +77,16 @@ export function ReaderRoastCard({
           event: "diagnosis",
           favoriteAuthor: stats.favoriteAuthor,
           favoriteGenre: stats.favoriteGenre,
+          hours: stats.hours,
           locale,
+          orderCount: stats.orderCount,
           pretendSpend: stats.pretendSpend,
           totalPages: stats.pages,
         },
       });
 
       const normalized =
-        "msg" in result
-          ? { roast: result.msg, tag: result.sfx }
-          : result;
+        "msg" in result ? { roast: result.msg, tag: result.sfx } : result;
       setDiagnosis(normalized);
       try {
         sessionStorage.setItem(
@@ -143,7 +143,7 @@ export function ReaderRoastCard({
         </div>
       ) : diagnosis ? (
         <div className="mt-6 border-2 border-line bg-surface p-5 text-ink shadow-[4px_4px_0_var(--line)]">
-          <p className="font-body font-medium text-base leading-relaxed sm:text-lg">
+          <p className="whitespace-pre-line font-body font-medium text-base leading-relaxed sm:text-lg">
             {diagnosis.roast}
           </p>
           <div className="mt-5 flex justify-end">

@@ -7,7 +7,6 @@ export interface ComicToastAction {
 }
 
 export interface ComicToastProps {
-  action?: ComicToastAction | null;
   id: string | number;
   isAlert?: boolean;
   message: string;
@@ -38,7 +37,6 @@ export function ComicToast({
   id,
   sfx,
   message,
-  action,
   isAlert = false,
   onClose,
 }: ComicToastProps) {
@@ -70,7 +68,9 @@ export function ComicToast({
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    if (touchStartX.current === null || touchStartY.current === null) return;
+    if (touchStartX.current === null || touchStartY.current === null) {
+      return;
+    }
     const deltaX = e.touches[0].clientX - touchStartX.current;
     const deltaY = e.touches[0].clientY - touchStartY.current;
 
@@ -93,7 +93,7 @@ export function ComicToast({
     <div
       aria-atomic="true"
       aria-live={isAlert ? "assertive" : "polite"}
-      className={`relative flex w-full max-w-[min(380px,calc(100vw-40px))] flex-col gap-1.5 rounded-[16px] border-[3px] border-line bg-card p-[14px_16px_16px] text-ink shadow-[6px_6px_0_var(--line)] [transform-origin:85%_110%] transition-transform duration-200 ${
+      className={`relative flex w-full max-w-[min(380px,calc(100vw-40px))] flex-col gap-1.5 rounded-[16px] border-[3px] border-line bg-card p-[14px_16px_16px] text-ink shadow-[6px_6px_0_var(--line)] transition-transform duration-200 [transform-origin:85%_110%] ${
         isExiting ? "animate-del-toast-exit" : "animate-del-pop"
       }`}
       data-comic-toast
@@ -106,7 +106,7 @@ export function ComicToast({
       <div className="flex items-center justify-between gap-3">
         <span
           aria-label={normalizedAria}
-          className="inline-block select-none font-accent text-2xl text-red uppercase leading-none tracking-[0.05em] animate-del-shake"
+          className="inline-block animate-del-shake select-none font-accent text-2xl text-red uppercase leading-none tracking-[0.05em]"
         >
           {sfx}
         </span>
@@ -123,21 +123,6 @@ export function ComicToast({
       <p className="m-0 text-pretty font-body font-semibold text-[16px] text-ink leading-[1.35]">
         {message}
       </p>
-
-      {action && (
-        <div className="mt-1 flex items-center justify-start">
-          <button
-            className="cursor-pointer border-2 border-line bg-card px-3 py-1 font-body font-bold text-ink text-xs uppercase shadow-[2px_2px_0_var(--line)] transition-all hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0_var(--line)] active:translate-x-[0] active:translate-y-[0] active:shadow-[1px_1px_0_var(--line)]"
-            onClick={() => {
-              action.onClick();
-              handleDismiss();
-            }}
-            type="button"
-          >
-            {action.label.slice(0, 18)}
-          </button>
-        </div>
-      )}
 
       {/* Speech bubble tail/beak at bottom right */}
       <div

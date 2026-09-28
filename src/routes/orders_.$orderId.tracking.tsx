@@ -295,7 +295,7 @@ function OrderTrackingPage() {
                     {text.trConfirmPromptText}
                   </p>
                   <ActionButton
-                    className="mt-1 flex w-full items-center justify-center gap-2 whitespace-normal px-4 py-3 text-center font-bold text-sm leading-snug break-words"
+                    className="mt-1 flex w-full items-center justify-center gap-2 whitespace-normal break-words px-4 py-3 text-center font-bold text-sm leading-snug"
                     onClick={handleConfirmReceipt}
                     tone="yellow"
                   >

@@ -213,10 +213,7 @@ test.describe("Delivery Tracking End-to-End Flow", () => {
     await expect(page.locator("section").first()).toContainText("Etapa 2 de 8");
 
     // 7. Verify /orders page reflects the stage
-    await page
-      .getByRole("link", { name: REGEX_ORDERS_LINK })
-      .first()
-      .click();
+    await page.getByRole("link", { name: REGEX_ORDERS_LINK }).first().click();
     await expect(page).toHaveURL("/orders");
 
     const orderArticle = page.locator("article").first();

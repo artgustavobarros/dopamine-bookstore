@@ -1,7 +1,12 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
-import { Slot } from "radix-ui";
-import type * as React from "react";
+import {
+  type ComponentProps,
+  cloneElement,
+  isValidElement,
+  type ReactElement,
+  type Ref,
+} from "react";
 
 const buttonVariants = cva(
   "group/button inline-flex shrink-0 select-none items-center justify-center whitespace-nowrap rounded-lg border border-transparent bg-clip-padding font-medium text-sm outline-none transition-all focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
@@ -41,26 +46,50 @@ const buttonVariants = cva(
   }
 );
 
+interface ButtonProps
+  extends ComponentProps<"button">,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean;
+  ref?: Ref<HTMLButtonElement>;
+}
+
 function Button({
   className,
   variant = "default",
   size = "default",
   asChild = false,
+  children,
+  type = "button",
+  ref,
   ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean;
-  }) {
-  const Comp = asChild ? Slot.Root : "button";
+}: ButtonProps) {
+  const combinedClassName = cn(buttonVariants({ className, size, variant }));
+
+  if (asChild && isValidElement(children)) {
+    const childProps = children.props as Record<string, unknown>;
+    return cloneElement(children as ReactElement<Record<string, unknown>>, {
+      ...props,
+      ...childProps,
+      className: cn(combinedClassName, childProps.className as string),
+      "data-size": size,
+      "data-slot": "button",
+      "data-variant": variant,
+      ref: (childProps.ref as Ref<HTMLButtonElement>) || ref,
+    });
+  }
 
   return (
-    <Comp
-      className={cn(buttonVariants({ className, size, variant }))}
+    <button
+      className={combinedClassName}
       data-size={size}
       data-slot="button"
       data-variant={variant}
+      ref={ref}
+      type={type}
       {...props}
-    />
+    >
+      {children}
+    </button>
   );
 }
 
