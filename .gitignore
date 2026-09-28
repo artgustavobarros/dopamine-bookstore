@@ -13,3 +13,10 @@ __unconfig*
 todos.json
 test-results
 playwright-report
+openspec
+.agent
+.agents
+.claude
+.codex
+.vscode
+docs
