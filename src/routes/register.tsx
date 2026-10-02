@@ -18,19 +18,13 @@ import { catalogQuery } from "@/lib/open-library";
 import { dispatchLogin } from "@/lib/roast-trigger";
 import { useStore } from "@/lib/store";
 
-const registerFormSchema = z
-  .object({
-    confirmPassword: z.string().min(4),
-    email: z.string().email(),
-    name: z.string().trim().min(1),
-    password: z.string().min(4),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "passwords_mismatch",
-    path: ["confirmPassword"],
-  });
+const registerFormSchema = z.object({
+  email: z.string().email(),
+  name: z.string().trim().min(1),
+});
 
 type RegisterFields = z.infer<typeof registerFormSchema>;
+const returnBookPattern = /^\/books\/(OL\d+W)$/;
 
 export const Route = createFileRoute("/register")({
   component: RegisterPage,
@@ -52,18 +46,14 @@ function RegisterPage() {
 
   const form = useForm<RegisterFields>({
     defaultValues: {
-      confirmPassword: "",
       email: "",
       name: "",
-      password: "",
     },
     resolver: zodResolver(registerFormSchema),
   });
 
   const nameInvalid = Boolean(form.formState.errors.name);
   const emailInvalid = Boolean(form.formState.errors.email);
-  const passwordInvalid = Boolean(form.formState.errors.password);
-  const confirmPasswordInvalid = Boolean(form.formState.errors.confirmPassword);
 
   const query = useQuery({
     ...catalogQuery(locale, ""),
@@ -95,22 +85,17 @@ function RegisterPage() {
         }
       }),
     {
-      dependencies: [
-        nameInvalid,
-        emailInvalid,
-        passwordInvalid,
-        confirmPasswordInvalid,
-      ],
+      dependencies: [nameInvalid, emailInvalid],
       revertOnUpdate: true,
       scope: route,
     }
   );
 
   function continueToDestination() {
+    const bookId = returnTo?.match(returnBookPattern)?.[1];
     if (returnTo === "/checkout") {
       navigate({ to: "/checkout" });
-    } else if (returnTo?.startsWith("/books/")) {
-      const bookId = returnTo.slice("/books/".length);
+    } else if (bookId) {
       navigate({ params: { bookId }, to: "/books/$bookId" });
     } else {
       navigate({ to: "/" });
@@ -121,7 +106,6 @@ function RegisterPage() {
     const result = registerUser({
       email: values.email,
       name: values.name,
-      password: values.password,
     });
 
     if (!result.success) {
@@ -216,52 +200,6 @@ function RegisterPage() {
                     role="alert"
                   >
                     {form.formState.errors.email?.message || text.emailError}
-                  </span>
-                )}
-              </label>
-
-              <label
-                className="flex flex-col gap-2 font-semibold"
-                htmlFor="register-password"
-              >
-                <span>{text.password}</span>
-                <Input
-                  autoComplete="new-password"
-                  id="register-password"
-                  type="password"
-                  {...form.register("password")}
-                  className="h-12 rounded-none border-2 border-line bg-paper px-3"
-                />
-                {Boolean(form.formState.errors.password) && (
-                  <span
-                    className="text-[#a91f22] text-sm dark:text-[#ff8680]"
-                    data-motion-alert
-                    role="alert"
-                  >
-                    {text.passwordError}
-                  </span>
-                )}
-              </label>
-
-              <label
-                className="flex flex-col gap-2 font-semibold"
-                htmlFor="register-confirm-password"
-              >
-                <span>{text.confirmPassword}</span>
-                <Input
-                  autoComplete="new-password"
-                  id="register-confirm-password"
-                  type="password"
-                  {...form.register("confirmPassword")}
-                  className="h-12 rounded-none border-2 border-line bg-paper px-3"
-                />
-                {Boolean(form.formState.errors.confirmPassword) && (
-                  <span
-                    className="text-[#a91f22] text-sm dark:text-[#ff8680]"
-                    data-motion-alert
-                    role="alert"
-                  >
-                    {text.confirmPasswordError}
                   </span>
                 )}
               </label>

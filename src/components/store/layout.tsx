@@ -14,7 +14,6 @@ import {
 import { Toaster } from "@/components/ui/sonner";
 import { t } from "@/lib/i18n";
 import { gsap, useGSAP, withMotion } from "@/lib/motion";
-import { dispatchIdle } from "@/lib/roast-trigger";
 import { useStore } from "@/lib/store";
 
 const destinations = [
@@ -78,16 +77,18 @@ export function StoreLayout() {
   );
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: number;
     const resetTimer = () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        dispatchIdle({
-          locale,
-          onBrowse: () => {
-            window.scrollTo({ behavior: "smooth", top: 400 });
-          },
-        });
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        import("@/lib/roast-trigger").then(({ dispatchIdle }) =>
+          dispatchIdle({
+            locale,
+            onBrowse: () => {
+              window.scrollTo({ behavior: "smooth", top: 400 });
+            },
+          })
+        );
       }, 90_000); // 90 seconds of inactivity
     };
 
@@ -98,16 +99,16 @@ export function StoreLayout() {
       "scroll",
       "touchstart",
     ];
-    activityEvents.forEach((ev) =>
-      window.addEventListener(ev, resetTimer, { passive: true })
-    );
+    for (const eventName of activityEvents) {
+      window.addEventListener(eventName, resetTimer, { passive: true });
+    }
     resetTimer();
 
     return () => {
-      clearTimeout(timer);
-      activityEvents.forEach((ev) =>
-        window.removeEventListener(ev, resetTimer)
-      );
+      window.clearTimeout(timer);
+      for (const eventName of activityEvents) {
+        window.removeEventListener(eventName, resetTimer);
+      }
     };
   }, [locale]);
 

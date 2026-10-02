@@ -15,6 +15,7 @@ import {
   genreLabels,
   genres,
 } from "@/lib/catalog";
+import { heroCoverUrl } from "@/lib/hero-covers";
 import { t } from "@/lib/i18n";
 import {
   gsap,
@@ -24,10 +25,40 @@ import {
   withMotion,
 } from "@/lib/motion";
 import { catalogQuery } from "@/lib/open-library";
-import { triggerExplorationRoast } from "@/lib/roast-trigger";
+import { homeStructuredData, siteUrl } from "@/lib/seo";
+import { getDefaultCatalogFn } from "@/lib/server/catalog";
 import { useStore } from "@/lib/store";
 
-export const Route = createFileRoute("/")({ component: Home });
+export const Route = createFileRoute("/")({
+  component: Home,
+  loader: () => getDefaultCatalogFn(),
+  head: ({ loaderData }) => ({
+    links: [
+      { href: `${siteUrl}/`, rel: "canonical" },
+      ...(loaderData?.[2]?.coverId
+        ? [
+            {
+              as: "image",
+              fetchPriority: "high" as const,
+              href: heroCoverUrl(loaderData[2].coverId),
+              rel: "preload",
+            },
+          ]
+        : []),
+    ],
+    meta: [
+      { content: "index, follow, max-image-preview:large", name: "robots" },
+      { content: `${siteUrl}/`, property: "og:url" },
+    ],
+    scripts: [
+      {
+        children: JSON.stringify(homeStructuredData),
+        type: "application/ld+json",
+      },
+    ],
+  }),
+  staleTime: 60 * 60 * 1000,
+});
 
 const defaultFilters: CatalogFilters = {
   author: "all",
@@ -38,12 +69,14 @@ const defaultFilters: CatalogFilters = {
 };
 
 function Home() {
+  const initialBooks = Route.useLoaderData();
   const hero = useRef<HTMLElement>(null);
   const locale = useStore((state) => state.locale);
   const hydrated = useStore((state) => state.hydrated);
   const refreshBooks = useStore((state) => state.refreshBooks);
   const text = t(locale);
   const [filters, setFilters] = useState<CatalogFilters>(defaultFilters);
+  const [visibleCount, setVisibleCount] = useState(12);
   const [searchTerm, setSearchTerm] = useState("");
   useEffect(() => {
     const timer = window.setTimeout(
@@ -55,10 +88,15 @@ function Home() {
   const query = useQuery({
     ...catalogQuery(locale, searchTerm),
     enabled: hydrated,
+    initialData:
+      locale === "pt" && searchTerm === "" && initialBooks.length > 0
+        ? initialBooks
+        : undefined,
   });
   const isSearchPending = filters.query.trim() !== searchTerm;
   const books = isSearchPending ? [] : (query.data ?? []);
   const filtered = filterBooks(books, filters);
+  const visibleBooks = filtered.slice(0, visibleCount);
   const authors = catalogAuthors(books);
   const filteredIds = filtered.map((book) => book.id).join(",");
   const featured = books.slice(0, 3);
@@ -84,13 +122,15 @@ function Home() {
       }
       explorationCount.current += 1;
       if (explorationCount.current % 3 === 0) {
-        triggerExplorationRoast({
-          filterPreviousValue: prevValue,
-          filterType,
-          filterValue: nextValue,
-          locale,
-          searchCount: explorationCount.current,
-        });
+        import("@/lib/roast-trigger").then(({ triggerExplorationRoast }) =>
+          triggerExplorationRoast({
+            filterPreviousValue: prevValue,
+            filterType,
+            filterValue: nextValue,
+            locale,
+            searchCount: explorationCount.current,
+          })
+        );
       }
     },
     [locale]
@@ -111,6 +151,7 @@ function Home() {
     const oldValue = filters[key];
     if (oldValue !== value) {
       setFilters((old) => ({ ...old, [key]: value }));
+      setVisibleCount(12);
       if (key === "price" || key === "author" || key === "length") {
         handleExplorationAction(key, String(value), String(oldValue));
       }
@@ -121,50 +162,10 @@ function Home() {
     if (genre !== filters.genre) {
       const oldGenre = filters.genre;
       setFilters((old) => ({ ...old, genre }));
+      setVisibleCount(12);
       handleExplorationAction("genre", genre, oldGenre);
     }
   };
-
-  useGSAP(
-    () =>
-      withMotion(() => {
-        const root = hero.current;
-        if (!root?.isConnected) {
-          return;
-        }
-        const timeline = gsap.timeline({ defaults: { ease: "back.out(1.2)" } });
-        timeline
-          .from(
-            root.querySelectorAll("[data-hero-badge]"),
-            {
-              autoAlpha: 0,
-              clearProps: "opacity,visibility,transform",
-              duration: 0.5,
-              rotation: -12,
-              scale: 1.8,
-            },
-            0.15
-          )
-          .from(
-            root.querySelectorAll("[data-hero-line]"),
-            {
-              autoAlpha: 0,
-              clearProps: "opacity,visibility,transform",
-              duration: 0.5,
-              stagger: 0.1,
-              y: 14,
-            },
-            0.2
-          );
-        timeline.eventCallback("onComplete", () => {
-          root.dataset.heroReady = "true";
-        });
-        return () => {
-          delete root.dataset.heroReady;
-        };
-      }),
-    { scope: hero }
-  );
 
   useGSAP(
     () =>
@@ -235,17 +236,11 @@ function Home() {
             ease: "power2.out",
           });
           const onEnter = () => {
-            if (root.dataset.heroReady !== "true") {
-              return;
-            }
             x(index === 1 ? 3 : -3);
             y(-7);
             rotation(restingRotation + (index === 1 ? 2 : -2));
           };
           const onMove = (event: PointerEvent) => {
-            if (root.dataset.heroReady !== "true") {
-              return;
-            }
             const rect = element.getBoundingClientRect();
             const offset = (event.clientX - rect.left) / rect.width - 0.5;
             x(offset * 7);
@@ -414,7 +409,7 @@ function Home() {
             </select>
           </label>
         </div>
-        {!hydrated || isSearchPending || query.isPending ? (
+        {isSearchPending || query.isPending ? (
           <div
             aria-busy="true"
             aria-live="polite"
@@ -438,10 +433,22 @@ function Home() {
             title={text.remoteEmpty}
           />
         ) : filtered.length > 0 ? (
-          <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filtered.map((book, index) => (
-              <BookCard book={book} key={book.id} revealIndex={index} />
-            ))}
+          <div>
+            <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {visibleBooks.map((book, index) => (
+                <BookCard book={book} key={book.id} revealIndex={index} />
+              ))}
+            </div>
+            {visibleCount < filtered.length && (
+              <div className="mt-10 flex justify-center">
+                <ActionButton
+                  onClick={() => setVisibleCount((count) => count + 12)}
+                  tone="surface"
+                >
+                  {text.loadMoreBooks}
+                </ActionButton>
+              </div>
+            )}
           </div>
         ) : (
           <EmptyState

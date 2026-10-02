@@ -1,131 +1,37 @@
+import { createHash } from "node:crypto";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
 import { env } from "@/env";
 import {
   getFallbackRoast,
   type RoastContext as LegacyRoastContext,
   type RoastPayload,
 } from "../roast-fallbacks";
+import { roastInputSchema, type UnifiedRoastInput } from "../roast-input";
 import {
   type EvaluatedRoast,
   ROASTS,
   type RoastEvent,
   selectRoastFromCatalog,
 } from "../roasts";
+import { allowAiRequest } from "./ai-limit";
+import { requestAiOrFallback } from "./ai-gate";
+import { BoundedTtlCache } from "./bounded-cache";
 
 const JSON_PREFIX_REGEX = /^```json\s*/i;
 const JSON_SUFFIX_REGEX = /```$/i;
 const EMOJI_REGEX = /\p{Extended_Pictographic}/u;
 
-// Cache map for server-side / runtime caching by event + rule
-const serverRoastCache = new Map<string, { sfx: string; msg: string }>();
-
-const roastInputSchema = z.object({
-  author: z.string().optional(),
-  authorCount: z.number().optional(),
-  book: z
-    .object({
-      author: z.string(),
-      genre: z.string(),
-      id: z.string(),
-      old: z.boolean().optional(),
-      pages: z.number(),
-      price: z.number().optional(),
-      ru: z.boolean().optional(),
-      title: z.string(),
-    })
-    .optional(),
-  bookTitle: z.string().optional(),
-  burstCount: z.number().optional(),
-  cardBrand: z.string().optional(),
-  cardLast4: z.string().optional(),
-  cart: z
-    .array(
-      z.object({
-        author: z.string(),
-        genre: z.string(),
-        id: z.string(),
-        old: z.boolean().optional(),
-        pages: z.number(),
-        price: z.number().optional(),
-        ru: z.boolean().optional(),
-        title: z.string(),
-      })
-    )
-    .optional(),
-  cartCount: z.number().optional(),
-  categorySwitches: z.number().optional(),
-  deliveryCode: z.string().optional(),
-  deliveryStage: z.string().optional(),
-  eta: z.string().optional(),
-  event: z.enum([
-    "book-added",
-    "book-readded",
-    "cart-opened",
-    "checkout-started",
-    "login-required",
-    "login",
-    "wish-added",
-    "review-posted",
-    "pix-copied",
-    "pix-expired",
-    "card-declined",
-    "purchase-completed",
-    "delivery-stage",
-    "delivered",
-    "delivery-receipt-confirmed",
-    "idle",
-    "cart-removed",
-    "cart_milestone_count",
-    "cart_milestone_pages",
-    "checkout_opened",
-    "order_completed",
-    "diagnosis",
-    "wishlist_milestone_pages",
-    "category_switch_milestone",
-    "search_milestone",
-  ]),
-  favoriteAuthor: z.string().nullable().optional(),
-  favoriteGenre: z.string().nullable().optional(),
-  filterPreviousValue: z.string().nullable().optional(),
-  filterType: z
-    .enum(["query", "genre", "price", "author", "length"])
-    .nullable()
-    .optional(),
-  filterValue: z.string().nullable().optional(),
-  genreFrom: z.string().nullable().optional(),
-  genreTo: z.string().nullable().optional(),
-  hours: z.union([z.number(), z.string()]).optional(),
-  inCart: z.boolean().optional(),
-  level: z.enum(["educado", "normal", "impiedoso"]).optional(),
-  locale: z.enum(["pt", "en"]).default("pt"),
-  n: z.number().optional(),
-  name: z.string().optional(),
-  orderCount: z.number().optional(),
-  orderNumber: z.string().optional(),
-  orders: z.array(z.any()).optional(),
-  owned: z.any().optional(),
-  pages: z.number().optional(),
-  pay: z.string().optional(),
-  paymentMethod: z.string().optional(),
-  pretendSpend: z.number().optional(),
-  prevPages: z.number().optional(),
-  promo: z.number().optional(),
-  query: z.string().optional(),
-  ru: z.number().optional(),
-  russianCount: z.number().optional(),
-  savedPages: z.number().optional(),
-  searchCount: z.number().optional(),
-  small: z.boolean().optional(),
-  title: z.string().optional(),
-  total: z.number().optional(),
-  totalPages: z.number().optional(),
-  wish: z.number().optional(),
-  wishlistCount: z.number().optional(),
-});
-
-export type UnifiedRoastInput = z.infer<typeof roastInputSchema>;
+const CACHE_TTL_MS = 15 * 60 * 1000;
+const MAX_CACHE_ENTRIES = 500;
+const serverRoastCache = new BoundedTtlCache<EvaluatedRoast>(
+  MAX_CACHE_ENTRIES,
+  CACHE_TTL_MS
+);
+const inFlightRoasts = new Map<
+  string,
+  Promise<EvaluatedRoast | RoastPayload>
+>();
 
 function getSystemPrompt(isDiagnosis: boolean, locale: "pt" | "en") {
   const isEn = locale === "en";
@@ -306,20 +212,6 @@ async function queryGoogleGemini(
   const configuredModel = env.GEMINI_MODEL;
   const isEn = data.locale === "en";
 
-  // Check cache first
-  const cacheKey = `${data.event}:${data.bookTitle || data.book?.id || "general"}:${data.locale}`;
-  if (!isDiagnosis && serverRoastCache.has(cacheKey)) {
-    const cached = serverRoastCache.get(cacheKey)!;
-    return {
-      event: data.event as RoastEvent,
-      msg: cached.msg,
-      priority: 2,
-      ruleId: "cached-ai",
-      sfx: cached.sfx,
-      variantIndex: 0,
-    };
-  }
-
   if (!apiKey) {
     console.warn(
       "[Gemini] No GEMINI_API_KEY found in environment. Using catalog fallback."
@@ -417,13 +309,8 @@ async function queryGoogleGemini(
         !EMOJI_REGEX.test(sfx)
       ) {
         console.log(
-          `[Gemini] Generated AI response successfully with "${model}": [${sfx}] "${msg.slice(0, 60)}..."`
+          `[Gemini] Generated ${isDiagnosis ? "diagnosis" : "roast"}.`
         );
-
-        // Store in cache
-        if (!isDiagnosis) {
-          serverRoastCache.set(cacheKey, { msg, sfx });
-        }
 
         return {
           event: data.event as RoastEvent,
@@ -438,13 +325,8 @@ async function queryGoogleGemini(
       console.warn(
         `[Gemini] AI output from "${model}" failed validation (length: ${msg.length}/${maxLength}, emojis: ${EMOJI_REGEX.test(msg) || EMOJI_REGEX.test(sfx)}).`
       );
-    } catch (error: any) {
-      const errorMsg =
-        error?.message ||
-        (typeof error === "string" ? error : JSON.stringify(error));
-      console.warn(
-        `[Gemini] API call with model "${model}" failed: ${errorMsg}.`
-      );
+    } catch {
+      console.warn(`[Gemini] API call with model "${model}" failed.`);
     }
   }
 
@@ -452,10 +334,60 @@ async function queryGoogleGemini(
   return resolveFallback(data);
 }
 
+function getCachedRoast(key: string): EvaluatedRoast | null {
+  const cached = serverRoastCache.get(key);
+  return cached ? { ...cached, ruleId: "cached-ai" } : null;
+}
+
+function rememberRoast(key: string, value: EvaluatedRoast) {
+  serverRoastCache.set(key, value);
+}
+
+async function handleAiRequest(
+  data: UnifiedRoastInput,
+  isDiagnosis: boolean
+): Promise<EvaluatedRoast | RoastPayload> {
+  if (!env.GEMINI_API_KEY?.trim()) {
+    return resolveFallback(data);
+  }
+  return await requestAiOrFallback(
+    () => allowAiRequest(isDiagnosis ? "diagnosis" : "roast"),
+    async () => {
+      if (isDiagnosis) {
+        return queryGoogleGemini(data, true);
+      }
+      const key = createHash("sha256")
+        .update(JSON.stringify(data))
+        .digest("hex");
+      const cached = getCachedRoast(key);
+      if (cached) {
+        return cached;
+      }
+      const pending = inFlightRoasts.get(key);
+      if (pending) {
+        return pending;
+      }
+      const request = queryGoogleGemini(data, false)
+        .then((result) => {
+          if ("ruleId" in result && result.ruleId === "gemini-ai") {
+            rememberRoast(key, result);
+          }
+          return result;
+        })
+        .finally(() => {
+          inFlightRoasts.delete(key);
+        });
+      inFlightRoasts.set(key, request);
+      return await request;
+    },
+    () => resolveFallback(data)
+  );
+}
+
 export const generateRoastFn = createServerFn({ method: "POST" })
   .validator((data: UnifiedRoastInput) => roastInputSchema.parse(data))
-  .handler(async ({ data }) => queryGoogleGemini(data, false));
+  .handler(async ({ data }) => handleAiRequest(data, false));
 
 export const generateDiagnosisFn = createServerFn({ method: "POST" })
   .validator((data: UnifiedRoastInput) => roastInputSchema.parse(data))
-  .handler(async ({ data }) => queryGoogleGemini(data, true));
+  .handler(async ({ data }) => handleAiRequest(data, true));

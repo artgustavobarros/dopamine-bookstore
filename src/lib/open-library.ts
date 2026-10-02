@@ -8,7 +8,8 @@ import {
   normalize,
 } from "./catalog";
 
-const OPEN_LIBRARY_BASE = "https://openlibrary.org";
+const OPEN_LIBRARY_BASE =
+  import.meta.env.VITE_OPEN_LIBRARY_BASE_URL || "https://openlibrary.org";
 const TIMEOUT_MS = 12_000;
 const editionSchema = z.object({
   cover_i: z.number().optional(),

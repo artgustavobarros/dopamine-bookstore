@@ -37,6 +37,6 @@ Allow: /
 User-agent: CCBot
 Disallow: /
 
-Sitemap: /sitemap.xml
+Sitemap: https://dopamine-bookstore.vercel.app/sitemap.xml
 # Context for LLMs & AI Search Engines
 # LLMs-Txt: /llms.txt

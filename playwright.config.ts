@@ -7,12 +7,22 @@ export default defineConfig({
     browserName: "chromium",
     headless: true,
   },
-  webServer: {
-    command: "pnpm run dev --host 127.0.0.1 --port 4173 --strictPort",
-    // Never hit Gemini from tests: force the deterministic catalog fallback
-    env: { GEMINI_API_KEY: "" },
-    reuseExistingServer: false,
-    timeout: 30_000,
-    url: "http://127.0.0.1:4173",
-  },
+  webServer: [
+    {
+      command: "node tests/open-library-mock.mjs",
+      reuseExistingServer: false,
+      timeout: 30_000,
+      url: "http://127.0.0.1:4174/health",
+    },
+    {
+      command: "pnpm run dev --host 127.0.0.1 --port 4173 --strictPort",
+      env: {
+        GEMINI_API_KEY: "",
+        VITE_OPEN_LIBRARY_BASE_URL: "http://127.0.0.1:4174",
+      },
+      reuseExistingServer: false,
+      timeout: 30_000,
+      url: "http://127.0.0.1:4173",
+    },
+  ],
 });

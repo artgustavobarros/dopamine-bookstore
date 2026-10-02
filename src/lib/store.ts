@@ -45,7 +45,6 @@ const registeredUserSchema = z.object({
   createdAt: z.string(),
   email: z.string().email(),
   name: z.string().min(1),
-  password: z.string().optional(),
   prefAddr: z.string().nullable().default(null),
   prefPay: z.string().default("pix"),
 });
@@ -105,15 +104,15 @@ type AppState = z.infer<typeof savedSchema> & {
   toggleWish: (book: Book) => boolean;
   moveWishesToCart: () => void;
   setProfile: (profile: Profile | null) => void;
-  registerUser: (data: { name: string; email: string; password?: string }) => {
+  registerUser: (data: { name: string; email: string }) => {
     success: boolean;
     error?: "email_taken" | "invalid_data";
   };
-  signInUser: (data: { email: string; password?: string }) => {
+  signInUser: (data: { email: string }) => {
     success: boolean;
-    error?: "not_found" | "invalid_password";
+    error?: "not_found";
   };
-  updateProfile: (data: { name: string; email: string; password?: string }) => {
+  updateProfile: (data: { name: string; email: string }) => {
     success: boolean;
     error?: string;
   };
@@ -373,7 +372,6 @@ export const useStore = create<AppState>()(
           createdAt: new Date().toISOString(),
           email,
           name,
-          password: data.password?.trim() || undefined,
           prefAddr: null,
           prefPay: "pix",
         };
@@ -531,12 +529,6 @@ export const useStore = create<AppState>()(
         const { users } = get();
         const existing = users[email];
         if (existing) {
-          if (
-            existing.password &&
-            (!data.password || existing.password !== data.password.trim())
-          ) {
-            return { error: "invalid_password", success: false };
-          }
           set({
             profile: {
               addresses: existing.addresses || [],
@@ -599,9 +591,6 @@ export const useStore = create<AppState>()(
           ...existingUser,
           email: newEmail,
           name: newName,
-          password: data.password
-            ? data.password.trim()
-            : existingUser.password,
         };
 
         const updatedProfile: Profile = {
@@ -659,18 +648,13 @@ export const useStore = create<AppState>()(
       },
       migrate: (persisted) => {
         const legacy = savedSchema
-          .omit({ bookCache: true })
+          .extend({ bookCache: z.record(z.string(), bookSchema).default({}) })
           .safeParse(persisted);
         if (!legacy.success) {
           return initial;
         }
-        return {
-          ...legacy.data,
-          bookCache: {},
-          cartIds: [],
-          users: {},
-          wishlistIds: [],
-        };
+        // Parsing strips legacy plaintext `password` keys from every user.
+        return legacy.data;
       },
       name: "depois-eu-leio-v1",
       partialize: (state) => ({
@@ -686,7 +670,7 @@ export const useStore = create<AppState>()(
       }),
       skipHydration: true,
       storage: createJSONStorage(() => safeStorage),
-      version: 2,
+      version: 3,
     }
   )
 );

@@ -776,27 +776,27 @@ function CheckoutPage() {
       return;
     }
     const interval = setInterval(() => {
-      setPixTimeLeft((prev) => {
-        if (prev <= 1) {
-          setPixStatus("expired");
-          clearInterval(interval);
-          setFormError(
-            locale === "pt"
-              ? "O código Pix expirou. Gere um novo código para continuar."
-              : "Pix code expired. Generate a new code to continue."
-          );
-          dispatchPixExpired(locale, () => {
-            setPixTimeLeft(60);
-            setPixStatus("waiting");
-            setFormError(null);
-          });
-          return 0;
-        }
-        return prev - 1;
-      });
+      setPixTimeLeft((prev) => Math.max(0, prev - 1));
     }, 1000);
     return () => clearInterval(interval);
-  }, [view, pixStatus, locale]);
+  }, [view, pixStatus]);
+
+  useEffect(() => {
+    if (view !== "pixwait" || pixStatus !== "waiting" || pixTimeLeft > 0) {
+      return;
+    }
+    setPixStatus("expired");
+    setFormError(
+      locale === "pt"
+        ? "O código Pix expirou. Gere um novo código para continuar."
+        : "Pix code expired. Generate a new code to continue."
+    );
+    dispatchPixExpired(locale, () => {
+      setPixTimeLeft(60);
+      setPixStatus("waiting");
+      setFormError(null);
+    });
+  }, [view, pixStatus, pixTimeLeft, locale]);
 
   useEffect(() => {
     if (
@@ -827,18 +827,21 @@ function CheckoutPage() {
     const clean = formatted.replace(REGEX_DIGITS, "");
     if (clean.length === 8) {
       setLoadingCep(true);
-      const data = await lookupCep(clean);
-      setLoadingCep(false);
-      if (data) {
-        if (data.logradouro) {
-          setNewStreet(data.logradouro);
+      try {
+        const data = await lookupCep(clean);
+        if (data) {
+          if (data.logradouro) {
+            setNewStreet(data.logradouro);
+          }
+          if (data.localidade) {
+            setNewCity(data.localidade);
+          }
+          if (data.uf) {
+            setNewUf(data.uf);
+          }
         }
-        if (data.localidade) {
-          setNewCity(data.localidade);
-        }
-        if (data.uf) {
-          setNewUf(data.uf);
-        }
+      } finally {
+        setLoadingCep(false);
       }
     }
   }

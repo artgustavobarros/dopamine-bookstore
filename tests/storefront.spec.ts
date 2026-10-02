@@ -130,12 +130,14 @@ test("catalog to fictional order, review, and insights survives reload", async (
   await expect(page.locator("main")).toContainText("Dom Casmurro");
 
   await page.getByRole("link", { name: "Ir para o checkout" }).click();
-  await page.getByRole("link", { name: "Cadastre-se para finalizar" }).click();
+  await page
+    .getByRole("link", { name: "Crie um perfil local para finalizar" })
+    .click();
   await page.locator("#register-name").fill("Ana Demo");
   await page.locator("#register-email").fill("ana@example.com");
-  await page.locator("#register-password").fill("senha123");
-  await page.locator("#register-confirm-password").fill("senha123");
-  await page.getByRole("button", { name: "Criar conta e continuar" }).click();
+  await page
+    .getByRole("button", { name: "Criar perfil local e continuar" })
+    .click();
   await expect(page).toHaveURL(checkoutUrl);
   await page.getByText("Pix de mentirinha").click();
   await page
@@ -302,6 +304,7 @@ test("language switch explains missing edition and keeps saved book readable", a
     .getByRole("button", { name: "Adicionar ao carrinho" })
     .click();
   await page.goto("/books/OL100W");
+  await expect(page.locator('[data-hydrated="true"]')).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Dom Casmurro" })
   ).toBeVisible();
@@ -320,6 +323,7 @@ test("catalog distinguishes language-specific empty results and API errors", asy
   page,
 }) => {
   await page.goto("/");
+  await expect(page.locator('[data-hydrated="true"]')).toBeVisible();
   await expect(page.locator("#catalog article")).toHaveCount(3);
   await page.getByLabel("Buscar título ou autor").fill("nada");
   await expect(
@@ -367,7 +371,7 @@ test("hero renders 3 featured books with black styling and covers, and SEO/AEO m
   const jsonText = await jsonLd.textContent();
   expect(jsonText).toContain("WebSite");
   expect(jsonText).toContain("BookStore");
-  expect(jsonText).toContain("FAQPage");
+  expect(jsonText).not.toContain("FAQPage");
   expect(jsonText).toContain("Dopamine Bookstore");
 });
 
@@ -456,7 +460,7 @@ test("triggers roast toasts on wishlist pages milestone, category switches, repe
   });
 });
 
-test("hero displays wave dot loading state and book skeletons while fetching", async ({
+test("hero and catalog render in HTML before browser requests", async ({
   page,
 }) => {
   let fulfillSearch!: () => void;
@@ -498,19 +502,13 @@ test("hero displays wave dot loading state and book skeletons while fetching", a
   });
 
   await page.goto("/");
-  await expect(page.locator("[data-hero-loading='true']")).toBeVisible();
-  await expect(page.locator(".hero-dots-wave")).toBeVisible();
-  await expect(page.locator("[data-hero-book]")).toHaveCount(0);
-  await expect(page.locator("[data-hero-seal]")).toHaveCount(0);
-  await expect(page.locator("[data-hero-status]")).toHaveCount(0);
-
-  fulfillSearch();
-
   await expect(page.locator("[data-hero-book]")).toHaveCount(3);
   await expect(page.locator("[data-hero-seal]")).toBeVisible();
   await expect(page.locator("[data-hero-status]")).toContainText(
     "Em destaque:"
   );
+  await expect(page.locator("#catalog article")).toHaveCount(3);
+  fulfillSearch();
 });
 
 test("buttons and role=button elements have pointer cursor when enabled and not-allowed when disabled", async ({

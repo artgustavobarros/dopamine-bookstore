@@ -15,6 +15,9 @@ export const env = createEnv({
   server: {
     GEMINI_API_KEY: z.string().optional(),
     GEMINI_MODEL: z.string().default("gemini-flash-lite-latest"),
+    RATE_LIMIT_KEY_SECRET: z.string().optional(),
+    UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+    UPSTASH_REDIS_REST_URL: z.string().url().optional(),
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),

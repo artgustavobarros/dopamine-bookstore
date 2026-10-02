@@ -1,11 +1,51 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource/archivo-black/400.css";
-@import "@fontsource-variable/work-sans";
-@import "@fontsource/space-mono/400.css";
-@import "@fontsource/space-mono/700.css";
-@import "@fontsource/bangers/400.css";
+
+@font-face {
+  font-family: "Archivo Black";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("@fontsource/archivo-black/files/archivo-black-latin-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Work Sans Variable";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: optional;
+  src: url("@fontsource-variable/work-sans/files/work-sans-latin-wght-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Space Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: optional;
+  src: url("@fontsource/space-mono/files/space-mono-latin-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Space Mono";
+  font-style: normal;
+  font-weight: 700;
+  font-display: optional;
+  src: url("@fontsource/space-mono/files/space-mono-latin-700-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Bangers";
+  font-style: normal;
+  font-weight: 400;
+  font-display: optional;
+  src: url("@fontsource/bangers/files/bangers-latin-400-normal.woff2")
+    format("woff2");
+}
 
 @custom-variant dark (&:is(.dark *));
 
@@ -66,7 +106,7 @@ html {
 body {
   min-width: 320px;
   margin: 0;
-  font-family: "Work Sans", sans-serif;
+  font-family: "Work Sans Variable", sans-serif;
   -webkit-font-smoothing: antialiased;
   color: var(--ink);
   background: var(--paper);

@@ -20,9 +20,9 @@ import { useStore } from "@/lib/store";
 
 const loginFormSchema = z.object({
   email: z.string().email(),
-  password: z.string().optional(),
 });
 type LoginFields = z.infer<typeof loginFormSchema>;
+const returnBookPattern = /^\/books\/(OL\d+W)$/;
 
 export const Route = createFileRoute("/account")({
   component: AccountPage,
@@ -42,11 +42,10 @@ function AccountPage() {
   const { returnTo } = Route.useSearch();
   const navigate = useNavigate();
   const form = useForm<LoginFields>({
-    defaultValues: { email: "", password: "" },
+    defaultValues: { email: "" },
     resolver: zodResolver(loginFormSchema),
   });
   const emailInvalid = Boolean(form.formState.errors.email);
-  const passwordInvalid = Boolean(form.formState.errors.password);
 
   const query = useQuery({
     ...catalogQuery(locale, ""),
@@ -78,17 +77,17 @@ function AccountPage() {
         }
       }),
     {
-      dependencies: [emailInvalid, passwordInvalid],
+      dependencies: [emailInvalid],
       revertOnUpdate: true,
       scope: route,
     }
   );
 
   function continueToDestination() {
+    const bookId = returnTo?.match(returnBookPattern)?.[1];
     if (returnTo === "/checkout") {
       navigate({ to: "/checkout" });
-    } else if (returnTo?.startsWith("/books/")) {
-      const bookId = returnTo.slice("/books/".length);
+    } else if (bookId) {
       navigate({ params: { bookId }, to: "/books/$bookId" });
     } else {
       navigate({ to: "/" });
@@ -96,26 +95,14 @@ function AccountPage() {
   }
 
   function onSubmit(values: LoginFields) {
-    const result = signInUser({
-      email: values.email,
-      password: values.password,
-    });
+    const result = signInUser({ email: values.email });
 
-    if (!result.success) {
-      if (result.error === "invalid_password") {
-        form.setError("password", {
-          message: text.invalidPassword,
-          type: "manual",
-        });
-        return;
-      }
-      if (result.error === "not_found") {
-        form.setError("email", {
-          message: text.userNotFound,
-          type: "manual",
-        });
-        return;
-      }
+    if (!result.success && result.error === "not_found") {
+      form.setError("email", {
+        message: text.userNotFound,
+        type: "manual",
+      });
+      return;
     }
 
     continueToDestination();
@@ -175,29 +162,6 @@ function AccountPage() {
                     role="alert"
                   >
                     {form.formState.errors.email?.message || text.emailError}
-                  </span>
-                )}
-              </label>
-              <label
-                className="flex flex-col gap-2 font-semibold"
-                htmlFor="profile-password"
-              >
-                <span>{text.password}</span>
-                <Input
-                  autoComplete="current-password"
-                  id="profile-password"
-                  type="password"
-                  {...form.register("password")}
-                  className="h-12 rounded-none border-2 border-line bg-paper px-3"
-                />
-                {Boolean(form.formState.errors.password) && (
-                  <span
-                    className="text-[#a91f22] text-sm dark:text-[#ff8680]"
-                    data-motion-alert
-                    role="alert"
-                  >
-                    {form.formState.errors.password?.message ||
-                      text.passwordError}
                   </span>
                 )}
               </label>

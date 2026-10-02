@@ -152,14 +152,14 @@ test.describe("Delivery Tracking End-to-End Flow", () => {
 
     // 3. Register user
     await page
-      .getByRole("link", { name: "Cadastre-se para finalizar" })
+      .getByRole("link", { name: "Crie um perfil local para finalizar" })
       .click();
     const uniqueEmail = `test-${Date.now()}@exemplo.com`;
     await page.locator("#register-name").fill("Arthur Teste");
     await page.locator("#register-email").fill(uniqueEmail);
-    await page.locator("#register-password").fill("123456");
-    await page.locator("#register-confirm-password").fill("123456");
-    await page.getByRole("button", { name: "Criar conta e continuar" }).click();
+    await page
+      .getByRole("button", { name: "Criar perfil local e continuar" })
+      .click();
 
     // 4. Fill address in checkout if needed, or complete order
     await expect(page).toHaveURL(REGEX_CHECKOUT_URL);

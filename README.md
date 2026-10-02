@@ -98,6 +98,7 @@ This project was built with intentional performance engineering to deliver high 
 - **Typographic Fallback Stage**: If an Open Library cover image takes time to load or does not exist, the component renders a comic typography fallback with halftone radial dots. When the image arrives, it overlays seamlessly without pushing adjacent elements.
 - **Adaptive Image Resolution**: The storefront loads medium resolution covers (`-M.jpg`, ~20–40 KB) in catalog grids and loads high resolution covers (`-L.jpg`) only on the book detail route (`/books/$bookId`), preventing bandwidth waste.
 - **Native Lazy Loading**: All below-the-fold catalog images carry `loading="lazy"` to defer loading until cards enter the viewport threshold.
+- **Fast Featured Covers**: The three current hero covers use local, right-sized WebP assets; the largest visible cover is preloaded at high priority. Other featured covers fall back to Open Library URLs.
 
 ### 3. Asset Optimization & Zero-Blocking Typography
 
@@ -107,6 +108,7 @@ This project was built with intentional performance engineering to deliver high 
   - `@fontsource/space-mono` (Data badges & pricing)
   - `@fontsource/bangers` (Comic onomatopoeia & accent badges)
 - **Zero Runtime CSS Overhead**: Tailwind CSS v4 runs via `@tailwindcss/vite` directly inside the build pipeline, emitting minimal scoped atomic CSS without JavaScript runtime styling overhead.
+- **Critical Display Font**: Archivo Black is preloaded for the mobile heading. Other fonts use `font-display: optional` to avoid layout shifts on slow connections.
 
 ### 4. Motion Physics & UI Thread Efficiency
 
@@ -120,6 +122,7 @@ This project was built with intentional performance engineering to deliver high 
 
 - **Server Functions (`createServerFn`)**: AI calls run server-side via TanStack Start, ensuring the Google Gemini API key is never exposed to the client bundle.
 - **Server-Side In-Memory Cache**: Repeated actions (e.g. adding the same book or repeating a checkout event) hit `serverRoastCache` (in `src/lib/server/roast.ts`), delivering sub-millisecond responses without querying the LLM API.
+- **Shared Abuse Budget**: On Vercel, Upstash Redis atomically limits each client to 20 roast requests per 10 minutes and 3 diagnoses per hour. Client IPs are keyed with a server-only HMAC secret. Missing limiter configuration or a Redis outage makes Gemini unavailable and selects the deterministic catalog response.
 - **Model Cascade & Fast Timeouts**: AI requests apply strict timeouts (2,500ms for comic toasts, 10,000ms for psychiatric diagnosis) and cascade from `gemini-flash-lite-latest` to `gemini-3.5-flash-lite`.
 - **Deterministic Offline Fallback**: If models timeout, rate-limit, or lack an API key, the system immediately returns an evaluated satirical punchline from `src/lib/roasts.ts`, ensuring the user never experiences a broken or hanging UI.
 - **Strict Structured JSON Schema**: Gemini requests enforce strict JSON mime types and schema validation (`Type.OBJECT`, `Type.STRING`), preventing hallucinated markdown wrappers or malformed outputs.
@@ -138,10 +141,9 @@ The project implements a modern multi-layer discoverability strategy covering tr
 
 ### 1. Semantic JSON-LD Structured Data
 
-The root layout (`src/routes/__root.tsx`) injects a comprehensive `@graph` structured schema:
-- **`WebSite` Schema**: Declares canonical identity, multi-language availability (`["pt-BR", "en"]`), and search attributes.
+The homepage injects an `@graph` structured schema:
+- **`WebSite` Schema**: Declares canonical identity and multi-language availability (`["pt-BR", "en"]`).
 - **`BookStore` Schema**: Clarifies that the platform operates with simulated currency (`priceRange: "R$ 0,00"`), accepts `Simulated zero-cost checkout`, and explicitly identifies the domain as a portfolio demonstration rather than a commercial retailer.
-- **`FAQPage` Schema**: Pre-answers critical questions in both Portuguese and English regarding whether the store is real, whether credit cards or Pix are charged, and where book metadata originates. This informs Google Rich Results and AI grounding models.
 
 ### 2. AI Crawler Permissions & Scraper Filtering
 
@@ -154,11 +156,11 @@ The `public/robots.txt` is structured to grant explicit access to legitimate sea
 
 - **`/llms.txt` Standard**: Provides structured Markdown designed for LLM scrapers and agentic search engines. It explains the project architecture, canonical routes, and confirms the non-commercial nature of the store to eliminate hallucinated purchase recommendations in tools like Perplexity or ChatGPT Search.
 - **`/pricing.md` Protocol**: A dedicated machine-readable pricing specification explicitly declaring zero monetary cost across all items.
-- **`/sitemap.xml`**: Canonical XML sitemap providing priority and change frequency for all primary pages (`/`, `/wishlist`, `/orders`, `/stats`, `/cart`, `/account`).
+- **`/sitemap.xml`**: Canonical XML sitemap listing the public homepage. Browser-local account, cart and order pages are excluded.
 
 ### 4. Social Metadata & Canonical Routing
 
-- Canonical URLs (`https://dopamine-bookstore.vercel.app/`) defined on the root route.
+- Canonical URLs are set on the indexable homepage and available book routes. Browser-local pages use `noindex, follow` and have no canonical URL.
 - Open Graph tags (`og:title`, `og:description`, `og:image`, `og:url`, `og:site_name`, `og:type: website`).
 - Twitter Card tags (`summary_large_image`).
 - Search directives: `robots: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"`.
@@ -255,6 +257,11 @@ cp .env.example .env
 | :--- | :--- | :--- | :--- |
 | `GEMINI_API_KEY` | Optional | `""` | Google Gemini API key for dynamic AI roasts and psychiatric reports. If omitted, the app smoothly uses the built-in deterministic catalog. |
 | `GEMINI_MODEL` | Optional | `gemini-flash-lite-latest` | Preferred Gemini model name. |
+| `UPSTASH_REDIS_REST_URL` | For live Gemini in production | — | HTTPS REST endpoint for the shared request budget. |
+| `UPSTASH_REDIS_REST_TOKEN` | For live Gemini in production | — | Server-only Redis REST token. |
+| `RATE_LIMIT_KEY_SECRET` | For live Gemini in production | — | Server-only random secret of at least 32 characters for HMAC client keys. |
+
+If any limiter setting is absent or the store fails, production uses catalog roasts and does not call Gemini. Demo profiles exist only in this browser; they are not authenticated accounts, and registration has no server endpoint or password.
 
 ### Verification & Quality Checks
 

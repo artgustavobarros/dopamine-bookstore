@@ -47,6 +47,10 @@ async function executeSingleRoast(
         event,
         level,
         locale,
+        owned:
+          ctx.owned instanceof Set
+            ? Array.from(ctx.owned).slice(0, 100)
+            : ctx.owned,
       },
     });
 
@@ -354,7 +358,9 @@ export function dispatchPurchaseCompleted({
 }) {
   const ctx: RoastContext = {
     n: ordersCount,
-    orders: Array.from({ length: ordersCount }),
+    orders: Array.from({ length: Math.min(ordersCount, 100) }, () => ({
+      books: [],
+    })),
     pages,
     total,
   };

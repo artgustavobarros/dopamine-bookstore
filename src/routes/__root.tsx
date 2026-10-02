@@ -10,79 +10,23 @@ import { ActionButton } from "@/components/store/action-button";
 import { StoreLayout } from "@/components/store/layout";
 import { t } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
+import archivoFontUrl from "@fontsource/archivo-black/files/archivo-black-latin-400-normal.woff2?url";
 
 import appCss from "../styles.css?url";
-
-const structuredData = {
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@id": "https://dopamine-bookstore.vercel.app/#website",
-      "@type": "WebSite",
-      description:
-        "Livraria fictícia e projeto de demonstração. Simulação de catálogo e compras com zero reais cobrados.",
-      inLanguage: ["pt-BR", "en"],
-      name: "Depois Eu Leio (Dopamine Bookstore)",
-      url: "https://dopamine-bookstore.vercel.app/",
-    },
-    {
-      "@id": "https://dopamine-bookstore.vercel.app/#bookstore",
-      "@type": "BookStore",
-      currenciesAccepted: "BRL",
-      description:
-        "Loja de demonstração e portfólio. Não é um marketplace real; todos os pedidos e pagamentos são estritamente fictícios.",
-      name: "Depois Eu Leio",
-      paymentAccepted: "Simulated zero-cost checkout",
-      priceRange: "R$ 0,00",
-      url: "https://dopamine-bookstore.vercel.app/",
-    },
-    {
-      "@id": "https://dopamine-bookstore.vercel.app/#faq",
-      "@type": "FAQPage",
-      mainEntity: [
-        {
-          "@type": "Question",
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: "Não. O Depois Eu Leio (Dopamine Bookstore) é um projeto de portfólio de engenharia de software e uma simulação satírica. Nenhuma compra é real, nenhum produto físico é enviado e nenhum valor financeiro é debitado.",
-          },
-          name: "O Depois Eu Leio é um marketplace ou loja real?",
-        },
-        {
-          "@type": "Question",
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: "No. Dopamine Bookstore (Depois Eu Leio) is an educational portfolio project and simulated marketplace. All purchases and checkouts are fictional; zero currency is charged and no physical books are shipped.",
-          },
-          name: "Is Dopamine Bookstore a real marketplace?",
-        },
-        {
-          "@type": "Question",
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: "Não. Os métodos de pagamento são fictícios (Pix de mentirinha e Cartão imaginário). Nenhum dado bancário é solicitado e o checkout custa exatamente R$ 0,00.",
-          },
-          name: "Os pagamentos com Cartão ou Pix cobram dinheiro de verdade?",
-        },
-        {
-          "@type": "Question",
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: "Os dados e capas dos livros são obtidos em tempo real da API pública da Open Library (Internet Archive), com cache local de 1 hora.",
-          },
-          name: "De onde vêm os livros exibidos no catálogo?",
-        },
-      ],
-    },
-  ],
-};
 
 export const Route = createRootRoute({
   component: StoreLayout,
   head: () => ({
     links: [
       { href: "/favicon.svg", rel: "icon", type: "image/svg+xml" },
-      { href: "https://dopamine-bookstore.vercel.app/", rel: "canonical" },
+      {
+        as: "font",
+        crossOrigin: "anonymous",
+        fetchPriority: "high",
+        href: archivoFontUrl,
+        rel: "preload",
+        type: "font/woff2",
+      },
       {
         href: appCss,
         rel: "stylesheet",
@@ -105,8 +49,7 @@ export const Route = createRootRoute({
         name: "description",
       },
       {
-        content:
-          "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        content: "noindex, follow",
         name: "robots",
       },
       {
@@ -127,10 +70,6 @@ export const Route = createRootRoute({
         property: "og:description",
       },
       {
-        content: "https://dopamine-bookstore.vercel.app/",
-        property: "og:url",
-      },
-      {
         content: "https://dopamine-bookstore.vercel.app/favicon.svg",
         property: "og:image",
       },
@@ -146,12 +85,6 @@ export const Route = createRootRoute({
         content:
           "Livraria simulada de demonstração. Zero reais cobrados, zero cobrança real, livros da Open Library.",
         name: "twitter:description",
-      },
-    ],
-    scripts: [
-      {
-        children: JSON.stringify(structuredData),
-        type: "application/ld+json",
       },
     ],
   }),

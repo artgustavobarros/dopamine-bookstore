@@ -1,19 +1,18 @@
 import { expect, test } from "@playwright/test";
 
 const titlePattern =
-  /Crie sua identidade de mentira|Create your imaginary identity/;
-const submitRegisterPattern = /Criar conta e continuar|Create account/;
-const passwordMismatchPattern =
-  /As senhas não coincidem|Passwords do not match/;
+  /Crie seu perfil local de demonstração|Create your local demo profile/;
+const submitRegisterPattern =
+  /Criar perfil local e continuar|Create local profile/;
 const homeUrlPattern = /\/$/;
 const signOutPattern = /Sair|Sign out/;
 const signInSubmitPattern = /Entrar e continuar|Sign in/;
-const registerLinkPattern = /Cadastre-se|Sign up/;
+const registerLinkPattern = /Criar perfil local|Create local profile/;
 const registerUrlPattern = /\/register\?returnTo=%2Fcheckout/;
 const loginLinkPattern = /Entrar|Sign in/;
 const accountUrlPattern = /\/account\?returnTo=%2Fcheckout/;
 const checkoutRegisterPattern =
-  /Cadastre-se para finalizar|Sign up to finish order/;
+  /Crie um perfil local para finalizar|Create a demo profile to finish order/;
 const checkoutUrlPattern = /\/checkout/;
 const completeOrderPattern =
   /Concluir decisão questionável|Complete questionable decision/;
@@ -35,17 +34,10 @@ test.describe("Registration and Authentication Flow", () => {
     await page.getByRole("button", { name: submitRegisterPattern }).click();
     await expect(page.locator("[data-motion-alert]").first()).toBeVisible();
 
-    // Fill registration form with password mismatch
+    // Register a local demo profile without a password.
     await page.locator("#register-name").fill("Dev Teste");
     await page.locator("#register-email").fill("dev@teste.com");
-    await page.locator("#register-password").fill("senha123");
-    await page.locator("#register-confirm-password").fill("senhaErrada");
-    await page.getByRole("button", { name: submitRegisterPattern }).click();
-
-    await expect(page.getByText(passwordMismatchPattern)).toBeVisible();
-
-    // Correct confirmation password and submit
-    await page.locator("#register-confirm-password").fill("senha123");
+    await expect(page.locator('input[type="password"]')).toHaveCount(0);
     await page.getByRole("button", { name: submitRegisterPattern }).click();
 
     // Should redirect to homepage and show logged in user in header
@@ -63,6 +55,9 @@ test.describe("Registration and Authentication Flow", () => {
     expect(storageData?.state?.users?.["dev@teste.com"]?.name).toBe(
       "Dev Teste"
     );
+    expect(
+      storageData?.state?.users?.["dev@teste.com"]?.password
+    ).toBeUndefined();
 
     // Profile survives page reload
     await page.reload();
@@ -73,19 +68,16 @@ test.describe("Registration and Authentication Flow", () => {
     await expect(page.getByText("Dev Teste")).toBeVisible();
     await page.getByRole("button", { name: signOutPattern }).click();
 
-    // Verify user is signed out and login form only has email and password (no name)
+    // Select the saved local profile by email.
     await expect(page.locator("#profile-email")).toBeVisible();
-    await expect(page.locator("#profile-password")).toBeVisible();
+    await expect(page.locator('input[type="password"]')).toHaveCount(0);
     await expect(page.locator("#profile-name")).toHaveCount(0);
 
-    // Test sign in with invalid password
-    await page.locator("#profile-email").fill("dev@teste.com");
-    await page.locator("#profile-password").fill("senhaErrada");
+    await page.locator("#profile-email").fill("unknown@teste.com");
     await page.getByRole("button", { name: signInSubmitPattern }).click();
     await expect(page.locator("[data-motion-alert]").first()).toBeVisible();
 
-    // Now sign back in using registered email & password
-    await page.locator("#profile-password").fill("senha123");
+    await page.locator("#profile-email").fill("dev@teste.com");
     await page.getByRole("button", { name: signInSubmitPattern }).click();
 
     // Verified logged in again
@@ -106,6 +98,15 @@ test.describe("Registration and Authentication Flow", () => {
       .getByRole("link", { name: loginLinkPattern })
       .click();
     await expect(page).toHaveURL(accountUrlPattern);
+  });
+
+  test("rejects an external returnTo destination", async ({ page }) => {
+    await page.goto("/register?returnTo=https%3A%2F%2Fexample.com");
+    await expect(page.locator('[data-hydrated="true"]')).toBeVisible();
+    await page.locator("#register-name").fill("Demo Reader");
+    await page.locator("#register-email").fill("reader@example.com");
+    await page.getByRole("button", { name: submitRegisterPattern }).click();
+    await expect(page).toHaveURL(homeUrlPattern);
   });
 
   test("evicts orphan profile session on load if email is not in registered users", async ({
@@ -203,8 +204,6 @@ test.describe("Registration and Authentication Flow", () => {
     // Fill registration form
     await page.locator("#register-name").fill("Comprador Real");
     await page.locator("#register-email").fill("comprador@real.com");
-    await page.locator("#register-password").fill("senha123");
-    await page.locator("#register-confirm-password").fill("senha123");
     await page.getByRole("button", { name: submitRegisterPattern }).click();
 
     // Should redirect back to checkout and show order form with signed-in user

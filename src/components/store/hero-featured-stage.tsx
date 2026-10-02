@@ -1,4 +1,5 @@
 import { type Book, formatNumber, type Locale } from "@/lib/catalog";
+import { heroCoverUrl } from "@/lib/hero-covers";
 import type { t } from "@/lib/i18n";
 
 export function HeroFeaturedStage({
@@ -39,8 +40,9 @@ export function HeroFeaturedStage({
                 <img
                   alt={book.title[locale]}
                   className="absolute inset-0 h-full w-full object-cover"
+                  fetchPriority={index === 2 ? "high" : "low"}
                   height={300}
-                  src={`https://covers.openlibrary.org/b/id/${book.coverId}-M.jpg`}
+                  src={heroCoverUrl(book.coverId)}
                   width={200}
                 />
               ) : (

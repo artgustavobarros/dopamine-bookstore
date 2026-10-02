@@ -31,6 +31,8 @@ import {
   dispatchReviewPosted,
   handleToggleWishWithMilestones,
 } from "@/lib/roast-trigger";
+import { siteUrl } from "@/lib/seo";
+import { getBookForPageFn } from "@/lib/server/catalog";
 import {
   getCartBooks,
   getWishlistBooks,
@@ -41,6 +43,42 @@ import {
 
 export const Route = createFileRoute("/books/$bookId")({
   component: BookDetail,
+  loader: ({ params }) => getBookForPageFn({ data: params.bookId }),
+  head: ({ loaderData }) => {
+    if (loaderData?.status !== "available") {
+      return {
+        meta: [
+          { title: "Livro indisponível — Depois Eu Leio" },
+          { content: "noindex, follow", name: "robots" },
+        ],
+      };
+    }
+    const book = loaderData.book;
+    const url = `${siteUrl}/books/${book.id}`;
+    const title = `${book.title.pt}, de ${book.author.pt} — Depois Eu Leio`;
+    const description = `Conheça ${book.title.pt}, de ${book.author.pt}, no catálogo da livraria fictícia Depois Eu Leio. Pedidos e pagamentos são simulados.`;
+    return {
+      links: [{ href: url, rel: "canonical" }],
+      meta: [
+        { title },
+        { content: description, name: "description" },
+        { content: "index, follow, max-image-preview:large", name: "robots" },
+        { content: "book", property: "og:type" },
+        { content: title, property: "og:title" },
+        { content: description, property: "og:description" },
+        { content: url, property: "og:url" },
+        ...(book.coverId
+          ? [
+              {
+                content: `https://covers.openlibrary.org/b/id/${book.coverId}-L.jpg`,
+                property: "og:image",
+              },
+            ]
+          : []),
+      ],
+    };
+  },
+  staleTime: 60 * 60 * 1000,
 });
 
 const reviewSchema = z.object({
@@ -84,6 +122,7 @@ function BookMetadata({ book, locale }: { book: Book; locale: Locale }) {
 }
 
 function BookDetail() {
+  const initialBook = Route.useLoaderData();
   const route = useRouteEntrance<HTMLDivElement>();
   const addLabel = useRef<HTMLSpanElement>(null);
   const wishIcon = useRef<HTMLSpanElement>(null);
@@ -100,7 +139,11 @@ function BookDetail() {
   const reviews = reviewsByBook[bookId] ?? emptyReviews;
   const hydrated = useStore((state) => state.hydrated);
   const refreshBooks = useStore((state) => state.refreshBooks);
-  const query = useQuery({ ...bookQuery(bookId, locale), enabled: hydrated });
+  const query = useQuery({
+    ...bookQuery(bookId, locale),
+    enabled: hydrated,
+    initialData: locale === "pt" ? initialBook : undefined,
+  });
   const book = query.data?.status === "available" ? query.data.book : null;
   useEffect(() => {
     if (book) {
@@ -168,7 +211,7 @@ function BookDetail() {
     }
   );
 
-  if (!hydrated || query.isPending) {
+  if (query.isPending) {
     return (
       <div
         aria-busy="true"
