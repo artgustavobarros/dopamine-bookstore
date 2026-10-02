@@ -1,34 +1,46 @@
 # seo-and-ai-discoverability Specification
 
 ## Purpose
-TBD - created by archiving change improve-seo-cache-and-hero-books. Update Purpose after archive.
+Expose truthful, indexable public storefront content and machine-readable context for search engines and AI agents.
+
 ## Requirements
 ### Requirement: Search and AI crawler access configuration
-The application SHALL provide a `public/robots.txt` configuration that explicitly allows both traditional search engine crawlers (such as Googlebot, Bingbot) and conversational/generative AI search crawlers (including GPTBot, ChatGPT-User, PerplexityBot, ClaudeBot, and Google-Extended). It SHALL reference the canonical sitemap (`sitemap.xml`) and the LLM context file (`llms.txt`).
+The application SHALL provide a valid `public/robots.txt` that allows traditional search and permitted AI crawlers to fetch public pages, references the canonical sitemap with an absolute HTTPS URL, and references `llms.txt` in a human-readable comment. It SHALL not use robots disallow rules as a substitute for `noindex` on local-personal pages.
 
-#### Scenario: AI crawler inspects robots.txt
-- **WHEN** an AI crawler (e.g. GPTBot or PerplexityBot) requests `/robots.txt`
-- **THEN** it receives explicit permission to crawl public indexable routes and finds links to `sitemap.xml` and `llms.txt`
+#### Scenario: Crawler inspects robots.txt
+- **WHEN** a crawler requests `/robots.txt`
+- **THEN** it receives parseable rules, an absolute canonical sitemap URL, and a reference to `/llms.txt`
 
 ### Requirement: Machine-readable context files for AI agents
-The application SHALL provide a `public/llms.txt` and a `public/pricing.md` describing the Dopamine Bookstore application, its architecture, catalog endpoints, and explicit confirmation that this is an educational simulation/fictional marketplace with zero-cost demo transactions. It SHALL also provide a valid `public/sitemap.xml` indexing all canonical storefront routes.
+The application SHALL provide `public/llms.txt` and `public/pricing.md` describing the fictional storefront, and a valid `public/sitemap.xml` containing only canonical, indexable public URLs. Local-personal routes and unresolved book detail URLs SHALL not appear in the sitemap.
 
 #### Scenario: AI agent retrieves llms.txt
 - **WHEN** an AI system fetches `/llms.txt`
-- **THEN** it receives structured Markdown summarizing the project, available routes, tech stack, and clear statements that purchases and products are purely simulated
+- **THEN** it receives structured Markdown summarizing the project, available public routes, technology, and the fact that purchases are simulated
 
 #### Scenario: AI agent evaluates pricing
 - **WHEN** an AI buying or comparison agent reads `/pricing.md`
-- **THEN** it parses structured information confirming all books carry zero actual cost (R$ 0.00 / $0.00) and no real monetary transactions take place
+- **THEN** it finds that no real payment or physical fulfillment occurs
+
+#### Scenario: Crawler reads sitemap
+- **WHEN** a crawler requests `/sitemap.xml`
+- **THEN** every listed URL is canonical, returns public indexable content, and excludes account, registration, cart, checkout, order, tracking, wishlist, and statistics pages
 
 ### Requirement: Simulation marketplace metadata and structured schema
-The application SHALL embed structured JSON-LD schema markup and document `<head>` metadata (canonical URL, Open Graph, Twitter cards, meta descriptions) explicitly confirming that Dopamine Bookstore is a fictional marketplace and portfolio demonstration. The schema markup SHALL include `WebSite`, `BookStore`, and `FAQPage` schemas addressing questions regarding payments, shipping, and real-world order fulfillment.
+The application SHALL render truthful JSON-LD and document metadata in initial HTML. The homepage SHALL use a self-referencing canonical and `WebSite`/demo `BookStore` schema. FAQ schema SHALL be present only when its questions and answers are visible on that page. Each indexable book detail page SHALL render its own canonical URL, title, description, and social URL. Personal and transactional pages SHALL render `noindex,follow`.
 
-#### Scenario: Search engine parses homepage structured data
-- **WHEN** a search engine crawler or rich results tester analyzes the root HTML
-- **THEN** it finds valid JSON-LD including `WebSite`, `BookStore`, and `FAQPage` schemas explicitly declaring the service as a demonstration bookstore with simulated orders
+#### Scenario: Search engine parses homepage
+- **WHEN** a crawler receives the homepage HTML
+- **THEN** it finds a homepage canonical, truthful demo metadata, and structured data matching visible content
+
+#### Scenario: Search engine parses a book page
+- **WHEN** a crawler receives an available book detail URL without executing JavaScript
+- **THEN** it finds the book title and content, a book-specific title and description, and a self-referencing canonical
+
+#### Scenario: Search engine parses a personal page
+- **WHEN** a crawler receives a cart, account, checkout, orders, tracking, wishlist, statistics, or registration page
+- **THEN** it finds `noindex,follow` and does not find a homepage canonical presented as that route's canonical
 
 #### Scenario: Social crawler or agent reads meta tags
-- **WHEN** a platform retrieves page `<head>` meta tags
-- **THEN** `og:title`, `og:description`, `description`, and `twitter:description` clearly state that the store is an imaginary / demonstration bookstore with simulated checkout
-
+- **WHEN** a platform retrieves a public page's initial `<head>` metadata
+- **THEN** its title and description identify the fictional storefront and its social URL matches that page's canonical URL
